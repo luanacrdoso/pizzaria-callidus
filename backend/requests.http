@@ -1,0 +1,36 @@
+### Listar cardápio
+GET http://localhost:3000/api/pizzas
+
+### Criar uma pizza
+POST http://localhost:3000/api/pizzas
+Content-Type: application/json
+
+{
+  "nome": "Calabresa",
+  "descricao": "Molho de tomate, muçarela e calabresa",
+  "categoria": "tradicional",
+  "imagem_url": "",
+  "preco_brotinho": 30,
+  "preco_media": 45,
+  "preco_grande": 60,
+  "tipo": "sabor_unico"
+}
+
+### Editar a pizza (troquem o :id pelo que veio na resposta do POST)
+PUT http://localhost:3000/api/pizzas/1
+Content-Type: application/json
+
+{
+  "nome": "Calabresa Especial",
+  "descricao": "Molho de tomate, muçarela e calabresa artesanal",
+  "categoria": "tradicional",
+  "imagem_url": "",
+  "preco_brotinho": 32,
+  "preco_media": 48,
+  "preco_grande": 65,
+  "tipo": "sabor_unico",
+  "visivel": true
+}
+
+### Excluir a pizza
+DELETE http://localhost:3000/api/pizzas/1

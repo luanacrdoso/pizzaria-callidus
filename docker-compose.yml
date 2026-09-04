@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: pizzaria_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pizzaria
+      POSTGRES_PASSWORD: pizzaria123
+      POSTGRES_DB: pizzaria_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pizzaria_pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pizzaria -d pizzaria_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./backend
+    container_name: pizzaria_api
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: pizzaria
+      DB_PASSWORD: pizzaria123
+      DB_NAME: pizzaria_db
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./frontend
+    container_name: pizzaria_web
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:3000/api
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
+volumes:
+  pizzaria_pgdata:
