@@ -34,3 +34,18 @@ Content-Type: application/json
 
 ### Excluir a pizza
 DELETE http://localhost:3000/api/pizzas/1
+
+### Listar adicionais
+GET http://localhost:3000/api/adicionais
+
+### Criar adicional
+POST http://localhost:3000/api/adicionais
+Content-Type: application/json
+
+{
+  "nome": "Borda recheada",
+  "preco": 8
+}
+
+### Excluir adicional (ajustem o :id)
+DELETE http://localhost:3000/api/adicionais/1
