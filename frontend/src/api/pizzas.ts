@@ -29,6 +29,16 @@ export async function criarPizza(dados: Omit<Pizza, 'id' | 'visivel'>): Promise<
   return resposta.json();
 }
 
+export async function editarPizza(pizza: Pizza): Promise<Pizza> {
+  const resposta = await fetch(`${API_URL}/pizzas/${pizza.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(pizza)
+  });
+  if (!resposta.ok) throw new Error('Erro ao editar pizza.');
+  return resposta.json();
+}
+
 export async function excluirPizza(id: number): Promise<void> {
   const resposta = await fetch(`${API_URL}/pizzas/${id}`, { method: 'DELETE' });
   if (!resposta.ok) throw new Error('Erro ao excluir pizza.');

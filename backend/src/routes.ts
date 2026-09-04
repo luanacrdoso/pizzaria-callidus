@@ -100,3 +100,48 @@ router.delete('/pizzas/:id', async (req, res) => {
     res.status(500).json({ mensagem: 'Erro ao excluir item.' });
   }
 });
+
+// GET /api/adicionais — lista os adicionais
+router.get('/adicionais', async (_req, res) => {
+  try {
+    const resultado = await pool.query('SELECT * FROM adicionais ORDER BY id');
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar adicionais.' });
+  }
+});
+
+// POST /api/adicionais — cria um adicional
+router.post('/adicionais', async (req, res) => {
+  const { nome, preco } = req.body;
+
+  if (!nome || preco === undefined) {
+    return res.status(400).json({ mensagem: 'nome e preco são obrigatórios.' });
+  }
+
+  try {
+    const resultado = await pool.query(
+      'INSERT INTO adicionais (nome, preco) VALUES ($1, $2) RETURNING *',
+      [nome, preco]
+    );
+    res.status(201).json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao criar adicional.' });
+  }
+});
+
+// DELETE /api/adicionais/:id
+router.delete('/adicionais/:id', async (req, res) => {
+  try {
+    const resultado = await pool.query('DELETE FROM adicionais WHERE id = $1 RETURNING id', [req.params.id]);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Adicional não encontrado.' });
+    }
+    res.status(204).send();
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao excluir adicional.' });
+  }
+});
