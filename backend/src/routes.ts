@@ -295,3 +295,101 @@ router.put('/mesas/:id', async (req, res) => {
     res.status(500).json({ mensagem: 'Erro ao editar mesa.' });
   }
 });
+
+// GET /api/salao — busca a configuração do salão de eventos
+router.get('/salao', async (_req, res) => {
+  try {
+    const resultado = await pool.query('SELECT * FROM salao_eventos WHERE id = 1');
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar salão de eventos.' });
+  }
+});
+
+// PUT /api/salao — atualiza a configuração do salão
+router.put('/salao', async (req, res) => {
+  const { nome, descricao, capacidade_pessoas, imagem_url, ativo } = req.body;
+
+  try {
+    const resultado = await pool.query(
+      `UPDATE salao_eventos SET
+        nome = $1, descricao = $2, capacidade_pessoas = $3, imagem_url = $4, ativo = $5
+       WHERE id = 1
+       RETURNING *`,
+      [nome, descricao, capacidade_pessoas, imagem_url, ativo]
+    );
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao atualizar salão de eventos.' });
+  }
+});
+
+// GET /api/reservas-salao — lista reservas (com filtro opcional por status)
+router.get('/reservas-salao', async (req, res) => {
+  const { status } = req.query;
+
+  try {
+    const query = status
+      ? { text: 'SELECT * FROM reservas_salao WHERE status = $1 ORDER BY data_evento', values: [status] }
+      : { text: 'SELECT * FROM reservas_salao ORDER BY data_evento', values: [] };
+
+    const resultado = await pool.query(query);
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar reservas.' });
+  }
+});
+
+// POST /api/reservas-salao — o Admin cadastra uma reserva recebida por WhatsApp
+router.post('/reservas-salao', async (req, res) => {
+  const {
+    nome_cliente, telefone_cliente, data_evento, horario_evento,
+    quantidade_convidados, valor_combinado, observacoes
+  } = req.body;
+
+  if (!nome_cliente || !data_evento) {
+    return res.status(400).json({ mensagem: 'nome_cliente e data_evento são obrigatórios.' });
+  }
+
+  try {
+    const resultado = await pool.query(
+      `INSERT INTO reservas_salao
+        (salao_id, nome_cliente, telefone_cliente, data_evento, horario_evento,
+         quantidade_convidados, valor_combinado, observacoes)
+       VALUES (1, $1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [nome_cliente, telefone_cliente, data_evento, horario_evento,
+       quantidade_convidados, valor_combinado, observacoes]
+    );
+    res.status(201).json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao criar reserva.' });
+  }
+});
+
+// PUT /api/reservas-salao/:id — atualiza o status (concluir ou cancelar)
+router.put('/reservas-salao/:id', async (req, res) => {
+  const { status } = req.body;
+
+  if (!['ativa', 'concluida', 'cancelada'].includes(status)) {
+    return res.status(400).json({ mensagem: 'status inválido.' });
+  }
+
+  try {
+    const resultado = await pool.query(
+      'UPDATE reservas_salao SET status = $1 WHERE id = $2 RETURNING *',
+      [status, req.params.id]
+    );
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Reserva não encontrada.' });
+    }
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao atualizar reserva.' });
+  }
+});
