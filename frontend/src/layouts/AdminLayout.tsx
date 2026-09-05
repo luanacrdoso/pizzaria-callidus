@@ -18,6 +18,7 @@ export function AdminLayout() {
         <NavLink to="/admin/config" style={linkStyle}>Aparência</NavLink>
         <NavLink to="/admin/cardapio" style={linkStyle}>Cardápio</NavLink>
         <NavLink to="/admin/mesas" style={linkStyle}>Mesas</NavLink>
+        <NavLink to="/admin/salao" style={linkStyle}>Salão de Eventos</NavLink>
       </nav>
       <div style={{ flex: 1 }}>
         <Outlet />

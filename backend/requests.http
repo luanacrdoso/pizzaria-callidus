@@ -77,3 +77,43 @@ Content-Type: application/json
   "chave_pix": "suachavepix@email.com",
   "formas_pagamento_aceitas": ["Pix", "Cartão de Crédito", "Cartão de Débito", "Dinheiro"]
 }
+
+### Buscar config do salão
+GET http://localhost:3000/api/salao
+
+### Ativar e configurar o salão
+PUT http://localhost:3000/api/salao
+Content-Type: application/json
+
+{
+  "nome": "Salão Callidus Eventos",
+  "descricao": "Espaço para aniversários e confraternizações",
+  "capacidade_pessoas": 50,
+  "imagem_url": "",
+  "ativo": true
+}
+
+### Criar uma reserva (simulando o que veio do WhatsApp)
+POST http://localhost:3000/api/reservas-salao
+Content-Type: application/json
+
+{
+  "nome_cliente": "Maria Silva",
+  "telefone_cliente": "(11) 98888-7777",
+  "data_evento": "2026-10-15",
+  "horario_evento": "19:00",
+  "quantidade_convidados": 30,
+  "valor_combinado": 800,
+  "observacoes": "Aniversário de 30 anos"
+}
+
+### Listar reservas ativas
+GET http://localhost:3000/api/reservas-salao?status=ativa
+
+### Cancelar uma reserva (ajustem o :id)
+PUT http://localhost:3000/api/reservas-salao/1
+Content-Type: application/json
+
+{
+  "status": "cancelada"
+}

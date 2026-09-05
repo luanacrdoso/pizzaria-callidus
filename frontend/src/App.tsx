@@ -3,6 +3,7 @@ import { AdminLayout } from './layouts/AdminLayout';
 import { AdminCardapioPage } from './pages/AdminCardapioPage';
 import { AdminConfigPage } from './pages/AdminConfigPage';
 import { AdminMesasPage } from './pages/AdminMesasPage';
+import { AdminSalaoPage } from './pages/AdminSalaoPage';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="cardapio" element={<AdminCardapioPage />} />
         <Route path="config" element={<AdminConfigPage />} />
         <Route path="mesas" element={<AdminMesasPage />} />
+        <Route path="salao" element={<AdminSalaoPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>
