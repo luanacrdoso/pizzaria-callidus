@@ -49,3 +49,31 @@ Content-Type: application/json
 
 ### Excluir adicional (ajustem o :id)
 DELETE http://localhost:3000/api/adicionais/1
+
+
+
+### Buscar configuração
+GET http://localhost:3000/api/config
+
+### Atualizar configuração
+PUT http://localhost:3000/api/config
+Content-Type: application/json
+
+{
+  "nome": "Pizzaria Callidus",
+  "descricao": "Massa de fermentação lenta com ingredientes frescos selecionados.",
+  "logo_url": "",
+  "capa_url": "",
+  "cor_primaria_clara": "#ef4444",
+  "cor_secundaria_clara": "#f59e0b",
+  "cor_primaria_escura": "#ef4444",
+  "cor_secundaria_escura": "#f59e0b",
+  "endereco": "Av. Darcy Vargas, 1200",
+  "dias_funcionamento": "Terça a Domingo",
+  "horario_funcionamento": "18:00 às 23:30",
+  "telefone": "(11) 99999-9999",
+  "tempo_preparo_estimado": "30-40 min",
+  "taxa_entrega": 7.5,
+  "chave_pix": "suachavepix@email.com",
+  "formas_pagamento_aceitas": ["Pix", "Cartão de Crédito", "Cartão de Débito", "Dinheiro"]
+}
