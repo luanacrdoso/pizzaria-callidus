@@ -145,3 +145,50 @@ router.delete('/adicionais/:id', async (req, res) => {
     res.status(500).json({ mensagem: 'Erro ao excluir adicional.' });
   }
 });
+
+// GET /api/config — busca a configuração da pizzaria
+router.get('/config', async (_req, res) => {
+  try {
+    const resultado = await pool.query('SELECT * FROM restaurante_config WHERE id = 1');
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar configuração.' });
+  }
+});
+
+// PUT /api/config — atualiza a configuração da pizzaria
+router.put('/config', async (req, res) => {
+  const {
+    nome, descricao, logo_url, capa_url,
+    cor_primaria_clara, cor_secundaria_clara,
+    cor_primaria_escura, cor_secundaria_escura,
+    endereco, dias_funcionamento, horario_funcionamento,
+    telefone, tempo_preparo_estimado, taxa_entrega,
+    chave_pix, formas_pagamento_aceitas
+  } = req.body;
+
+  try {
+    const resultado = await pool.query(
+      `UPDATE restaurante_config SET
+        nome = $1, descricao = $2, logo_url = $3, capa_url = $4,
+        cor_primaria_clara = $5, cor_secundaria_clara = $6,
+        cor_primaria_escura = $7, cor_secundaria_escura = $8,
+        endereco = $9, dias_funcionamento = $10, horario_funcionamento = $11,
+        telefone = $12, tempo_preparo_estimado = $13, taxa_entrega = $14,
+        chave_pix = $15, formas_pagamento_aceitas = $16
+       WHERE id = 1
+       RETURNING *`,
+      [nome, descricao, logo_url, capa_url,
+       cor_primaria_clara, cor_secundaria_clara,
+       cor_primaria_escura, cor_secundaria_escura,
+       endereco, dias_funcionamento, horario_funcionamento,
+       telefone, tempo_preparo_estimado, taxa_entrega,
+       chave_pix, JSON.stringify(formas_pagamento_aceitas)]
+    );
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao atualizar configuração.' });
+  }
+});
