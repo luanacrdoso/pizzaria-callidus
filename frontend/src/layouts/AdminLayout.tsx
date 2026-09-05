@@ -17,6 +17,7 @@ export function AdminLayout() {
         <h2 style={{ fontSize: 16 }}>Painel Admin</h2>
         <NavLink to="/admin/config" style={linkStyle}>Aparência</NavLink>
         <NavLink to="/admin/cardapio" style={linkStyle}>Cardápio</NavLink>
+        <NavLink to="/admin/mesas" style={linkStyle}>Mesas</NavLink>
       </nav>
       <div style={{ flex: 1 }}>
         <Outlet />

@@ -192,3 +192,106 @@ router.put('/config', async (req, res) => {
     res.status(500).json({ mensagem: 'Erro ao atualizar configuração.' });
   }
 });
+
+// GET /api/mesas — lista todas as mesas
+router.get('/mesas', async (_req, res) => {
+  try {
+    const resultado = await pool.query('SELECT * FROM mesas ORDER BY numero');
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar mesas.' });
+  }
+});
+
+// POST /api/mesas — cria uma mesa nova
+router.post('/mesas', async (req, res) => {
+  const { numero, capacidade } = req.body;
+
+  if (!numero || !capacidade) {
+    return res.status(400).json({ mensagem: 'numero e capacidade são obrigatórios.' });
+  }
+
+  try {
+    const resultado = await pool.query(
+      'INSERT INTO mesas (numero, capacidade) VALUES ($1, $2) RETURNING *',
+      [numero, capacidade]
+    );
+    res.status(201).json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao criar mesa.' });
+  }
+});
+
+// PUT /api/mesas/:id — edita a capacidade (ou status) de uma mesa
+router.put('/mesas/:id', async (req, res) => {
+  const { capacidade, status } = req.body;
+
+  try {
+    const resultado = await pool.query(
+      'UPDATE mesas SET capacidade = $1, status = $2 WHERE id = $3 RETURNING *',
+      [capacidade, status, req.params.id]
+    );
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Mesa não encontrada.' });
+    }
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao editar mesa.' });
+  }
+});
+
+// DELETE /api/mesas/:id
+router.delete('/mesas/:id', async (req, res) => {
+  try {
+    const resultado = await pool.query('DELETE FROM mesas WHERE id = $1 RETURNING id', [req.params.id]);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Mesa não encontrada.' });
+    }
+    res.status(204).send();
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao excluir mesa.' });
+  }
+});
+
+// POST /api/mesas — cria uma mesa nova
+router.post('/mesas', async (req, res) => {
+  const { numero, capacidade, nome } = req.body;
+
+  if (!numero || !capacidade) {
+    return res.status(400).json({ mensagem: 'numero e capacidade são obrigatórios.' });
+  }
+
+  try {
+    const resultado = await pool.query(
+      'INSERT INTO mesas (numero, capacidade, nome) VALUES ($1, $2, $3) RETURNING *',
+      [numero, capacidade, nome ?? null]
+    );
+    res.status(201).json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao criar mesa.' });
+  }
+});
+
+// PUT /api/mesas/:id — edita nome, capacidade ou status de uma mesa
+router.put('/mesas/:id', async (req, res) => {
+  const { capacidade, status, nome } = req.body;
+
+  try {
+    const resultado = await pool.query(
+      'UPDATE mesas SET capacidade = $1, status = $2, nome = $3 WHERE id = $4 RETURNING *',
+      [capacidade, status, nome ?? null, req.params.id]
+    );
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Mesa não encontrada.' });
+    }
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao editar mesa.' });
+  }
+});
