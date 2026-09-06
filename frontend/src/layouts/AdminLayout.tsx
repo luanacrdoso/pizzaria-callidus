@@ -35,6 +35,7 @@ return (
       <NavLink to="/admin/cardapio" style={linkStyle}>Cardápio</NavLink>
       <NavLink to="/admin/mesas" style={linkStyle}>Mesas</NavLink>
       <NavLink to="/admin/salao" style={linkStyle}>Salão de Eventos</NavLink>
+      <NavLink to="/admin/reservas-mesa" style={linkStyle}>Reservas de Mesa</NavLink>
       <NavLink to="/admin/funcionarios" style={linkStyle}>Funcionários</NavLink>
       <button onClick={handleLogout} style={{ marginTop: 'auto' }}>Sair</button>
       <NavLink to="/admin/perfil" style={linkStyle}>Meus Dados</NavLink>

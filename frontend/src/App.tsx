@@ -9,6 +9,7 @@ import { AdminPerfilPage } from './pages/AdminPerfilPage';
 import { LoginPage } from './pages/LoginPage';
 import { EsqueciSenhaPage } from './pages/EsqueciSenhaPage';
 import { RequireAuth } from './components/RequireAuth';
+import { AdminReservasMesaPage } from './pages/AdminReservasMesaPage';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         <Route path="config" element={<AdminConfigPage />} />
         <Route path="mesas" element={<AdminMesasPage />} />
         <Route path="salao" element={<AdminSalaoPage />} />
+        <Route path="reservas-mesa" element={<AdminReservasMesaPage />} />
         <Route path="funcionarios" element={<AdminFuncionariosPage />} />
         <Route path="perfil" element={<AdminPerfilPage />} />
       </Route>
