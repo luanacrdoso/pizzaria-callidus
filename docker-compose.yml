@@ -29,6 +29,9 @@ services:
       DB_PASSWORD: pizzaria123
       DB_NAME: pizzaria_db
       PORT: 3000
+      JWT_SECRET: ${JWT_SECRET}
+      GMAIL_USER: ${GMAIL_USER}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
     ports:
       - "3000:3000"
     volumes:
