@@ -263,3 +263,27 @@ Content-Type: application/json
   "codigo": "805853",
   "nova_senha": "outraSenha456"
 }
+
+### ========== RESERVAS DE MESA ==========
+
+### Criar uma reserva de mesa (simulando WhatsApp)
+POST http://localhost:3000/api/reservas-mesa
+Content-Type: application/json
+
+{
+  "nome_cliente": "Carlos Souza",
+  "telefone_cliente": "(11) 96666-5555",
+  "data_reserva": "2026-10-10",
+  "horario_reserva": "20:00",
+  "quantidade_pessoas": 4,
+  "observacoes": "Aniversário, se possível mesa perto da janela"
+}
+
+### Listar reservas ativas
+GET http://localhost:3000/api/reservas-mesa?status=ativa
+
+### Concluir a reserva (ajustem o :id)
+PUT http://localhost:3000/api/reservas-mesa/1
+Content-Type: application/json
+
+{ "status": "concluida" }

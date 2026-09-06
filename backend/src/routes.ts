@@ -593,3 +593,68 @@ router.post('/auth/redefinir-senha', async (req, res) => {
     res.status(500).json({ mensagem: 'Erro ao redefinir senha.' });
   }
 });
+
+// ========== RESERVAS DE MESA ==========
+
+// GET /api/reservas-mesa — lista reservas (com filtro opcional por status)
+router.get('/reservas-mesa', async (req, res) => {
+  const { status } = req.query;
+
+  try {
+    const query = status
+      ? { text: 'SELECT * FROM reservas_mesa WHERE status = $1 ORDER BY data_reserva', values: [status] }
+      : { text: 'SELECT * FROM reservas_mesa ORDER BY data_reserva', values: [] };
+
+    const resultado = await pool.query(query);
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar reservas de mesa.' });
+  }
+});
+
+// POST /api/reservas-mesa — o Admin cadastra uma reserva recebida por WhatsApp
+router.post('/reservas-mesa', async (req, res) => {
+  const { nome_cliente, telefone_cliente, data_reserva, horario_reserva, quantidade_pessoas, mesa_id, observacoes } = req.body;
+
+  if (!nome_cliente || !data_reserva) {
+    return res.status(400).json({ mensagem: 'nome_cliente e data_reserva são obrigatórios.' });
+  }
+
+  try {
+    const resultado = await pool.query(
+      `INSERT INTO reservas_mesa
+        (nome_cliente, telefone_cliente, data_reserva, horario_reserva, quantidade_pessoas, mesa_id, observacoes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [nome_cliente, telefone_cliente, data_reserva, horario_reserva, quantidade_pessoas, mesa_id || null, observacoes]
+    );
+    res.status(201).json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao criar reserva de mesa.' });
+  }
+});
+
+// PUT /api/reservas-mesa/:id — atualiza status ou atribui uma mesa
+router.put('/reservas-mesa/:id', async (req, res) => {
+  const { status, mesa_id } = req.body;
+
+  if (status && !['ativa', 'concluida', 'cancelada'].includes(status)) {
+    return res.status(400).json({ mensagem: 'status inválido.' });
+  }
+
+  try {
+    const resultado = await pool.query(
+      'UPDATE reservas_mesa SET status = COALESCE($1, status), mesa_id = COALESCE($2, mesa_id) WHERE id = $3 RETURNING *',
+      [status, mesa_id, req.params.id]
+    );
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Reserva não encontrada.' });
+    }
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao atualizar reserva de mesa.' });
+  }
+});
