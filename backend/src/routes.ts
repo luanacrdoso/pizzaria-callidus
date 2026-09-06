@@ -1,7 +1,33 @@
 import { Router } from 'express';
+import bcrypt from 'bcrypt';
 import { pool } from './db';
+import { gerarToken, verificarAdmin } from './auth';
 
 export const router = Router();
+
+// ========== AUTENTICAÇÃO ==========
+
+// POST /api/auth/login — login do Admin (agora validado contra o banco)
+router.post('/auth/login', async (req, res) => {
+  const { username, password } = req.body;
+
+  try {
+    const resultado = await pool.query('SELECT * FROM admins WHERE username = $1', [username]);
+    const admin = resultado.rows[0];
+
+    if (!admin || !(await bcrypt.compare(password, admin.senha_hash))) {
+      return res.status(401).json({ mensagem: 'Usuário ou senha inválidos.' });
+    }
+
+    const token = gerarToken({ id: admin.id, username: admin.username, tipo: 'admin' });
+    res.json({ token });
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao fazer login.' });
+  }
+});
+
+// ========== PIZZAS (CARDÁPIO) ==========
 
 // GET /api/pizzas — lista todo o cardápio
 router.get('/pizzas', async (_req, res) => {
@@ -101,6 +127,8 @@ router.delete('/pizzas/:id', async (req, res) => {
   }
 });
 
+// ========== ADICIONAIS ==========
+
 // GET /api/adicionais — lista os adicionais
 router.get('/adicionais', async (_req, res) => {
   try {
@@ -145,6 +173,8 @@ router.delete('/adicionais/:id', async (req, res) => {
     res.status(500).json({ mensagem: 'Erro ao excluir adicional.' });
   }
 });
+
+// ========== CONFIGURAÇÃO DA PIZZARIA ==========
 
 // GET /api/config — busca a configuração da pizzaria
 router.get('/config', async (_req, res) => {
@@ -193,6 +223,8 @@ router.put('/config', async (req, res) => {
   }
 });
 
+// ========== MESAS ==========
+
 // GET /api/mesas — lista todas as mesas
 router.get('/mesas', async (_req, res) => {
   try {
@@ -201,59 +233,6 @@ router.get('/mesas', async (_req, res) => {
   } catch (erro) {
     console.error(erro);
     res.status(500).json({ mensagem: 'Erro ao buscar mesas.' });
-  }
-});
-
-// POST /api/mesas — cria uma mesa nova
-router.post('/mesas', async (req, res) => {
-  const { numero, capacidade } = req.body;
-
-  if (!numero || !capacidade) {
-    return res.status(400).json({ mensagem: 'numero e capacidade são obrigatórios.' });
-  }
-
-  try {
-    const resultado = await pool.query(
-      'INSERT INTO mesas (numero, capacidade) VALUES ($1, $2) RETURNING *',
-      [numero, capacidade]
-    );
-    res.status(201).json(resultado.rows[0]);
-  } catch (erro) {
-    console.error(erro);
-    res.status(500).json({ mensagem: 'Erro ao criar mesa.' });
-  }
-});
-
-// PUT /api/mesas/:id — edita a capacidade (ou status) de uma mesa
-router.put('/mesas/:id', async (req, res) => {
-  const { capacidade, status } = req.body;
-
-  try {
-    const resultado = await pool.query(
-      'UPDATE mesas SET capacidade = $1, status = $2 WHERE id = $3 RETURNING *',
-      [capacidade, status, req.params.id]
-    );
-    if (resultado.rows.length === 0) {
-      return res.status(404).json({ mensagem: 'Mesa não encontrada.' });
-    }
-    res.json(resultado.rows[0]);
-  } catch (erro) {
-    console.error(erro);
-    res.status(500).json({ mensagem: 'Erro ao editar mesa.' });
-  }
-});
-
-// DELETE /api/mesas/:id
-router.delete('/mesas/:id', async (req, res) => {
-  try {
-    const resultado = await pool.query('DELETE FROM mesas WHERE id = $1 RETURNING id', [req.params.id]);
-    if (resultado.rows.length === 0) {
-      return res.status(404).json({ mensagem: 'Mesa não encontrada.' });
-    }
-    res.status(204).send();
-  } catch (erro) {
-    console.error(erro);
-    res.status(500).json({ mensagem: 'Erro ao excluir mesa.' });
   }
 });
 
@@ -295,6 +274,22 @@ router.put('/mesas/:id', async (req, res) => {
     res.status(500).json({ mensagem: 'Erro ao editar mesa.' });
   }
 });
+
+// DELETE /api/mesas/:id
+router.delete('/mesas/:id', async (req, res) => {
+  try {
+    const resultado = await pool.query('DELETE FROM mesas WHERE id = $1 RETURNING id', [req.params.id]);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Mesa não encontrada.' });
+    }
+    res.status(204).send();
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao excluir mesa.' });
+  }
+});
+
+// ========== SALÃO DE EVENTOS ==========
 
 // GET /api/salao — busca a configuração do salão de eventos
 router.get('/salao', async (_req, res) => {
@@ -391,5 +386,210 @@ router.put('/reservas-salao/:id', async (req, res) => {
   } catch (erro) {
     console.error(erro);
     res.status(500).json({ mensagem: 'Erro ao atualizar reserva.' });
+  }
+});
+
+// ========== FUNCIONÁRIOS ==========
+
+// POST /api/funcionarios — cadastro (público, fica pendente até o Admin aprovar)
+router.post('/funcionarios', async (req, res) => {
+  const { username, senha, nome, telefone, cargo } = req.body;
+
+  if (!username || !senha || !nome || !cargo) {
+    return res.status(400).json({ mensagem: 'username, senha, nome e cargo são obrigatórios.' });
+  }
+
+  try {
+    const senhaHash = await bcrypt.hash(senha, 10);
+    const resultado = await pool.query(
+      `INSERT INTO funcionarios (username, senha_hash, nome, telefone, cargo)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, username, nome, telefone, cargo, aprovado`,
+      [username, senhaHash, nome, telefone, cargo]
+    );
+    res.status(201).json(resultado.rows[0]);
+  } catch (erro: any) {
+    if (erro.code === '23505') { // código do Postgres pra violação de UNIQUE
+      return res.status(409).json({ mensagem: 'Esse nome de usuário já existe.' });
+    }
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao cadastrar funcionário.' });
+  }
+});
+
+// GET /api/funcionarios — lista todos (protegido, só Admin)
+router.get('/funcionarios', verificarAdmin, async (_req, res) => {
+  try {
+    const resultado = await pool.query(
+      'SELECT id, username, nome, telefone, cargo, aprovado FROM funcionarios ORDER BY criado_em DESC'
+    );
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar funcionários.' });
+  }
+});
+
+// PUT /api/funcionarios/:id/aprovar — aprova um funcionário pendente (protegido)
+router.put('/funcionarios/:id/aprovar', verificarAdmin, async (req, res) => {
+  try {
+    const resultado = await pool.query(
+      'UPDATE funcionarios SET aprovado = true WHERE id = $1 RETURNING id, username, nome, cargo, aprovado',
+      [req.params.id]
+    );
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Funcionário não encontrado.' });
+    }
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao aprovar funcionário.' });
+  }
+});
+
+// DELETE /api/funcionarios/:id — remove (reprovar pendente ou desligar ativo) (protegido)
+router.delete('/funcionarios/:id', verificarAdmin, async (req, res) => {
+  try {
+    const resultado = await pool.query('DELETE FROM funcionarios WHERE id = $1 RETURNING id', [req.params.id]);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Funcionário não encontrado.' });
+    }
+    res.status(204).send();
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao remover funcionário.' });
+  }
+});
+
+import { enviarCodigoRecuperacao } from './mailer';
+import { verificarAutenticado } from './auth'; // adicionem junto do import que já existe de verificarAdmin
+
+// ========== PERFIL DO USUÁRIO LOGADO ==========
+
+// GET /api/me — dados do usuário logado (admin ou, futuramente, funcionário)
+router.get('/me', verificarAutenticado, async (req, res) => {
+  const usuario = (req as any).usuario;
+  const tabela = usuario.tipo === 'admin' ? 'admins' : 'funcionarios';
+
+  try {
+    const resultado = await pool.query(`SELECT id, username, email FROM ${tabela} WHERE id = $1`, [usuario.id]);
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar perfil.' });
+  }
+});
+
+// PUT /api/me — edita username/e-mail (exige a senha atual)
+router.put('/me', verificarAutenticado, async (req, res) => {
+  const usuario = (req as any).usuario;
+  const { username, email, senha_atual } = req.body;
+  const tabela = usuario.tipo === 'admin' ? 'admins' : 'funcionarios';
+
+  try {
+    const atual = await pool.query(`SELECT senha_hash FROM ${tabela} WHERE id = $1`, [usuario.id]);
+    if (!atual.rows[0] || !(await bcrypt.compare(senha_atual, atual.rows[0].senha_hash))) {
+      return res.status(401).json({ mensagem: 'Senha atual incorreta.' });
+    }
+
+    const resultado = await pool.query(
+      `UPDATE ${tabela} SET username = $1, email = $2 WHERE id = $3 RETURNING id, username, email`,
+      [username, email, usuario.id]
+    );
+    res.json(resultado.rows[0]);
+  } catch (erro: any) {
+    if (erro.code === '23505') {
+      return res.status(409).json({ mensagem: 'Esse nome de usuário já existe.' });
+    }
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao atualizar perfil.' });
+  }
+});
+
+// PUT /api/me/senha — troca de senha (exige a senha atual)
+router.put('/me/senha', verificarAutenticado, async (req, res) => {
+  const usuario = (req as any).usuario;
+  const { senha_atual, nova_senha } = req.body;
+  const tabela = usuario.tipo === 'admin' ? 'admins' : 'funcionarios';
+
+  if (!nova_senha || nova_senha.length < 6) {
+    return res.status(400).json({ mensagem: 'A nova senha precisa ter pelo menos 6 caracteres.' });
+  }
+
+  try {
+    const atual = await pool.query(`SELECT senha_hash FROM ${tabela} WHERE id = $1`, [usuario.id]);
+    if (!atual.rows[0] || !(await bcrypt.compare(senha_atual, atual.rows[0].senha_hash))) {
+      return res.status(401).json({ mensagem: 'Senha atual incorreta.' });
+    }
+
+    const novoHash = await bcrypt.hash(nova_senha, 10);
+    await pool.query(`UPDATE ${tabela} SET senha_hash = $1 WHERE id = $2`, [novoHash, usuario.id]);
+    res.json({ mensagem: 'Senha atualizada com sucesso.' });
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao atualizar senha.' });
+  }
+});
+
+// ========== RECUPERAÇÃO DE SENHA POR E-MAIL ==========
+
+// POST /api/auth/esqueci-senha — gera e envia o código
+router.post('/auth/esqueci-senha', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ mensagem: 'email é obrigatório.' });
+
+  try {
+    const existeAdmin = await pool.query('SELECT id FROM admins WHERE email = $1', [email]);
+    const existeFuncionario = await pool.query('SELECT id FROM funcionarios WHERE email = $1', [email]);
+
+    if (existeAdmin.rows.length > 0 || existeFuncionario.rows.length > 0) {
+      const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiraEm = new Date(Date.now() + 15 * 60 * 1000);
+
+      await pool.query(
+        'INSERT INTO codigos_recuperacao (email, codigo, expira_em) VALUES ($1, $2, $3)',
+        [email, codigo, expiraEm]
+      );
+      await enviarCodigoRecuperacao(email, codigo);
+    }
+
+    // Mesma resposta exista ou não o e-mail — evita que alguém descubra quais e-mails estão cadastrados
+    res.json({ mensagem: 'Se esse e-mail estiver cadastrado, um código foi enviado.' });
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao processar solicitação.' });
+  }
+});
+
+// POST /api/auth/redefinir-senha — confirma o código e define a nova senha
+router.post('/auth/redefinir-senha', async (req, res) => {
+  const { email, codigo, nova_senha } = req.body;
+
+  if (!email || !codigo || !nova_senha || nova_senha.length < 6) {
+    return res.status(400).json({ mensagem: 'Dados inválidos.' });
+  }
+
+  try {
+    const resultadoCodigo = await pool.query(
+      `SELECT * FROM codigos_recuperacao
+       WHERE email = $1 AND codigo = $2 AND usado = false AND expira_em > now()
+       ORDER BY criado_em DESC LIMIT 1`,
+      [email, codigo]
+    );
+
+    if (resultadoCodigo.rows.length === 0) {
+      return res.status(400).json({ mensagem: 'Código inválido ou expirado.' });
+    }
+
+    const novoHash = await bcrypt.hash(nova_senha, 10);
+    const admin = await pool.query('UPDATE admins SET senha_hash = $1 WHERE email = $2 RETURNING id', [novoHash, email]);
+    if (admin.rows.length === 0) {
+      await pool.query('UPDATE funcionarios SET senha_hash = $1 WHERE email = $2', [novoHash, email]);
+    }
+
+    await pool.query('UPDATE codigos_recuperacao SET usado = true WHERE id = $1', [resultadoCodigo.rows[0].id]);
+    res.json({ mensagem: 'Senha redefinida com sucesso.' });
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao redefinir senha.' });
   }
 });

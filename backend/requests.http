@@ -1,3 +1,5 @@
+### ========== PIZZAS (CARDÁPIO) ==========
+
 ### Listar cardápio
 GET http://localhost:3000/api/pizzas
 
@@ -35,6 +37,9 @@ Content-Type: application/json
 ### Excluir a pizza
 DELETE http://localhost:3000/api/pizzas/1
 
+
+### ========== ADICIONAIS ==========
+
 ### Listar adicionais
 GET http://localhost:3000/api/adicionais
 
@@ -51,6 +56,7 @@ Content-Type: application/json
 DELETE http://localhost:3000/api/adicionais/1
 
 
+### ========== CONFIGURAÇÃO DA PIZZARIA ==========
 
 ### Buscar configuração
 GET http://localhost:3000/api/config
@@ -77,6 +83,37 @@ Content-Type: application/json
   "chave_pix": "suachavepix@email.com",
   "formas_pagamento_aceitas": ["Pix", "Cartão de Crédito", "Cartão de Débito", "Dinheiro"]
 }
+
+
+### ========== MESAS ==========
+
+### Listar mesas
+GET http://localhost:3000/api/mesas
+
+### Criar mesa
+POST http://localhost:3000/api/mesas
+Content-Type: application/json
+
+{
+  "numero": 1,
+  "capacidade": 4
+}
+
+### Editar mesa (ajustem o :id)
+PUT http://localhost:3000/api/mesas/1
+Content-Type: application/json
+
+{
+  "capacidade": 6,
+  "status": "livre",
+  "nome": "Mesa da janela"
+}
+
+### Excluir mesa (ajustem o :id)
+DELETE http://localhost:3000/api/mesas/1
+
+
+### ========== SALÃO DE EVENTOS ==========
 
 ### Buscar config do salão
 GET http://localhost:3000/api/salao
@@ -116,4 +153,113 @@ Content-Type: application/json
 
 {
   "status": "cancelada"
+}
+
+
+### ========== AUTENTICAÇÃO ==========
+
+### Login com a senha padrão
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+### Login errado (deve dar 401)
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "senhaerrada"
+}
+
+
+### ========== FUNCIONÁRIOS ==========
+
+### Cadastrar um funcionário de teste (público)
+POST http://localhost:3000/api/funcionarios
+Content-Type: application/json
+
+{
+  "username": "joao_garcom",
+  "senha": "123456",
+  "nome": "João Silva",
+  "telefone": "(11) 97777-6666",
+  "cargo": "garcom"
+}
+
+### Tentar listar funcionários SEM token (deve dar 401)
+GET http://localhost:3000/api/funcionarios
+
+### Listar funcionários COM token (colem o token de um login acima)
+GET http://localhost:3000/api/funcionarios
+Authorization: Bearer COLE_O_TOKEN_AQUI
+
+### Aprovar funcionário (ajustem o :id e o token)
+PUT http://localhost:3000/api/funcionarios/1/aprovar
+Authorization: Bearer COLE_O_TOKEN_AQUI
+
+### Excluir funcionário (ajustem o :id e o token)
+DELETE http://localhost:3000/api/funcionarios/1
+Authorization: Bearer COLE_O_TOKEN_AQUI
+
+
+### ========== MEU PERFIL (ADMIN OU FUNCIONÁRIO LOGADO) ==========
+
+### Ver perfil (colem o token de um login)
+GET http://localhost:3000/api/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInRpcG8iOiJhZG1pbiIsImlhdCI6MTc4ODYzNjI4OSwiZXhwIjoxNzg4NjY1MDg5fQ.KDbbrKF0QUxVRwL1yIsRjGtAuv39Tsn95trL5rhDAg4
+
+### Editar username/e-mail (usem um e-mail de verdade, de alguém do grupo)
+PUT http://localhost:3000/api/me
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInRpcG8iOiJhZG1pbiIsImlhdCI6MTc4ODYzNjI4OSwiZXhwIjoxNzg4NjY1MDg5fQ.KDbbrKF0QUxVRwL1yIsRjGtAuv39Tsn95trL5rhDAg4
+
+{
+  "username": "admin",
+  "email": "luanacardosob19@gmail.com",
+  "senha_atual": "novaSenha123"
+}
+
+### Trocar a senha
+PUT http://localhost:3000/api/me/senha
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInRpcG8iOiJhZG1pbiIsImlhdCI6MTc4ODYzNjI4OSwiZXhwIjoxNzg4NjY1MDg5fQ.KDbbrKF0QUxVRwL1yIsRjGtAuv39Tsn95trL5rhDAg4
+
+{
+  "senha_atual": "admin123",
+  "nova_senha": "novaSenha123"
+}
+
+### Login com a senha nova (deve funcionar depois da troca acima)
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "novaSenha123"
+}
+
+
+### ========== RECUPERAÇÃO DE SENHA POR E-MAIL ==========
+
+### Esqueci minha senha (usem o mesmo e-mail cadastrado no PUT /me acima)
+POST http://localhost:3000/api/auth/esqueci-senha
+Content-Type: application/json
+
+{
+  "email": "luanacardosob19@gmail.com"
+}
+
+### Redefinir com o código que chegou no e-mail
+POST http://localhost:3000/api/auth/redefinir-senha
+Content-Type: application/json
+
+{
+  "email": "luanacardosob19@gmail.com",
+  "codigo": "805853",
+  "nova_senha": "outraSenha456"
 }
