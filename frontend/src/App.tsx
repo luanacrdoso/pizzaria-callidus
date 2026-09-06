@@ -10,6 +10,7 @@ import { LoginPage } from './pages/LoginPage';
 import { EsqueciSenhaPage } from './pages/EsqueciSenhaPage';
 import { RequireAuth } from './components/RequireAuth';
 import { AdminReservasMesaPage } from './pages/AdminReservasMesaPage';
+import { AdminCuponsPage } from './pages/AdminCuponsPage';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
         <Route path="mesas" element={<AdminMesasPage />} />
         <Route path="salao" element={<AdminSalaoPage />} />
         <Route path="reservas-mesa" element={<AdminReservasMesaPage />} />
+        <Route path="cupons" element={<AdminCuponsPage />} />
         <Route path="funcionarios" element={<AdminFuncionariosPage />} />
         <Route path="perfil" element={<AdminPerfilPage />} />
       </Route>

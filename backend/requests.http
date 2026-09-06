@@ -287,3 +287,51 @@ PUT http://localhost:3000/api/reservas-mesa/1
 Content-Type: application/json
 
 { "status": "concluida" }
+
+### ========== CUPONS ==========
+
+### Criar cupom (precisa de token de admin)
+POST http://localhost:3000/api/cupons
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInRpcG8iOiJhZG1pbiIsImlhdCI6MTc4ODYzNjI4OSwiZXhwIjoxNzg4NjY1MDg5fQ.KDbbrKF0QUxVRwL1yIsRjGtAuv39Tsn95trL5rhDAg4
+
+{
+  "codigo": "BEMVINDO10",
+  "tipo": "percentual",
+  "valor": 10,
+  "limite_usos": 100
+}
+
+### Validar o cupom (rota pública, sem token)
+POST http://localhost:3000/api/cupons/validar
+Content-Type: application/json
+
+{ "codigo": "bemvindo10", "subtotal": 50 }
+
+### Validar cupom inexistente (deve dar 404)
+POST http://localhost:3000/api/cupons/validar
+Content-Type: application/json
+
+{ "codigo": "NAOEXISTE", "subtotal": 50 }
+
+### Listar cupons (precisa de token)
+GET http://localhost:3000/api/cupons
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInRpcG8iOiJhZG1pbiIsImlhdCI6MTc4ODYzNjI4OSwiZXhwIjoxNzg4NjY1MDg5fQ.KDbbrKF0QUxVRwL1yIsRjGtAuv39Tsn95trL5rhDAg4
+
+### Criar cupom de entrega grátis (precisa de token de admin)
+POST http://localhost:3000/api/cupons
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsInRpcG8iOiJhZG1pbiIsImlhdCI6MTc4ODYzNjI4OSwiZXhwIjoxNzg4NjY1MDg5fQ.KDbbrKF0QUxVRwL1yIsRjGtAuv39Tsn95trL5rhDAg4
+
+{
+  "codigo": "FRETEGRATIS",
+  "tipo": "entrega_gratis",
+  "valor": 0,
+  "limite_usos": 50
+}
+
+### Validar o cupom de entrega grátis
+POST http://localhost:3000/api/cupons/validar
+Content-Type: application/json
+
+{ "codigo": "FRETEGRATIS", "subtotal": 60, "taxa_entrega": 7.5 }
