@@ -658,3 +658,131 @@ router.put('/reservas-mesa/:id', async (req, res) => {
     res.status(500).json({ mensagem: 'Erro ao atualizar reserva de mesa.' });
   }
 });
+
+// ========== CUPONS DE DESCONTO ==========
+
+// GET /api/cupons — lista todos (protegido, só Admin)
+router.get('/cupons', verificarAdmin, async (_req, res) => {
+  try {
+    const resultado = await pool.query('SELECT * FROM cupons ORDER BY criado_em DESC');
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar cupons.' });
+  }
+});
+
+// POST /api/cupons — cria um cupom (protegido)
+router.post('/cupons', verificarAdmin, async (req, res) => {
+  const { codigo, tipo, valor, validade_inicio, validade_fim, limite_usos } = req.body;
+
+  if (!codigo || !tipo || valor === undefined) {
+    return res.status(400).json({ mensagem: 'codigo, tipo e valor são obrigatórios.' });
+  }
+
+  try {
+    const resultado = await pool.query(
+      `INSERT INTO cupons (codigo, tipo, valor, validade_inicio, validade_fim, limite_usos)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [codigo.toUpperCase(), tipo, valor, validade_inicio || null, validade_fim || null, limite_usos || null]
+    );
+    res.status(201).json(resultado.rows[0]);
+  } catch (erro: any) {
+    if (erro.code === '23505') {
+      return res.status(409).json({ mensagem: 'Já existe um cupom com esse código.' });
+    }
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao criar cupom.' });
+  }
+});
+
+// PUT /api/cupons/:id — edita ou ativa/desativa (protegido)
+router.put('/cupons/:id', verificarAdmin, async (req, res) => {
+  const { tipo, valor, ativo, validade_inicio, validade_fim, limite_usos } = req.body;
+
+  try {
+    const resultado = await pool.query(
+      `UPDATE cupons SET
+        tipo = $1, valor = $2, ativo = $3, validade_inicio = $4, validade_fim = $5, limite_usos = $6
+       WHERE id = $7 RETURNING *`,
+      [tipo, valor, ativo, validade_inicio || null, validade_fim || null, limite_usos || null, req.params.id]
+    );
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Cupom não encontrado.' });
+    }
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao atualizar cupom.' });
+  }
+});
+
+// DELETE /api/cupons/:id (protegido)
+router.delete('/cupons/:id', verificarAdmin, async (req, res) => {
+  try {
+    const resultado = await pool.query('DELETE FROM cupons WHERE id = $1 RETURNING id', [req.params.id]);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Cupom não encontrado.' });
+    }
+    res.status(204).send();
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao excluir cupom.' });
+  }
+});
+
+// POST /api/cupons/validar — usado pelo Cliente no checkout (rota pública)
+router.post('/cupons/validar', async (req, res) => {
+  const { codigo, subtotal, taxa_entrega } = req.body;
+
+  if (!codigo || subtotal === undefined) {
+    return res.status(400).json({ mensagem: 'codigo e subtotal são obrigatórios.' });
+  }
+
+  try {
+    const resultado = await pool.query('SELECT * FROM cupons WHERE codigo = $1', [codigo.toUpperCase()]);
+    const cupom = resultado.rows[0];
+
+    if (!cupom) {
+      return res.status(404).json({ mensagem: 'Cupom não encontrado.' });
+    }
+    if (!cupom.ativo) {
+      return res.status(400).json({ mensagem: 'Este cupom não está mais ativo.' });
+    }
+    const hoje = new Date().toISOString().slice(0, 10);
+    if (cupom.validade_inicio && hoje < cupom.validade_inicio) {
+      return res.status(400).json({ mensagem: 'Este cupom ainda não é válido.' });
+    }
+    if (cupom.validade_fim && hoje > cupom.validade_fim) {
+      return res.status(400).json({ mensagem: 'Este cupom expirou.' });
+    }
+    if (cupom.limite_usos !== null && cupom.usos_atuais >= cupom.limite_usos) {
+      return res.status(400).json({ mensagem: 'Este cupom atingiu o limite de usos.' });
+    }
+
+    let valorDesconto: number;
+    let aplicaEm: 'subtotal' | 'entrega';
+
+    if (cupom.tipo === 'percentual') {
+      valorDesconto = Number(subtotal) * (Number(cupom.valor) / 100);
+      aplicaEm = 'subtotal';
+    } else if (cupom.tipo === 'valor_fixo') {
+      valorDesconto = Math.min(Number(cupom.valor), Number(subtotal));
+      aplicaEm = 'subtotal';
+    } else {
+      // entrega_gratis: zera a taxa de entrega recebida, o campo "valor" do cupom não é usado nesse tipo
+      valorDesconto = Number(taxa_entrega) || 0;
+      aplicaEm = 'entrega';
+    }
+
+    res.json({
+      codigo: cupom.codigo,
+      tipo: cupom.tipo,
+      valor_desconto: Number(valorDesconto.toFixed(2)),
+      aplica_em: aplicaEm
+    });
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao validar cupom.' });
+  }
+});
