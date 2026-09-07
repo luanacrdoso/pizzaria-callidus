@@ -43,3 +43,9 @@ export async function excluirPizza(id: number): Promise<void> {
   const resposta = await fetch(`${API_URL}/pizzas/${id}`, { method: 'DELETE' });
   if (!resposta.ok) throw new Error('Erro ao excluir pizza.');
 }
+
+export async function buscarPizzaPorId(id: number): Promise<any> {
+  const resposta = await fetch(`${API_URL}/pizzas/${id}`);
+  if (!resposta.ok) throw new Error('Erro ao buscar item.');
+  return resposta.json();
+}
