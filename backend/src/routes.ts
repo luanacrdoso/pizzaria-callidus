@@ -36,6 +36,20 @@ router.post('/auth/login', async (req, res) => {
 
 // ========== PIZZAS (CARDÁPIO) ==========
 // GET /api/pizzas — lista todo o cardápio
+router.get('/pizzas', async (req, res) => {
+  const { visivel } = req.query;
+  try {
+    const query = visivel === 'true'
+      ? { text: 'SELECT * FROM pizzas WHERE visivel = true ORDER BY criado_em DESC', values: [] }
+      : { text: 'SELECT * FROM pizzas ORDER BY criado_em DESC', values: [] };
+    const resultado = await pool.query(query);
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar cardápio.' });
+  }
+});
+
 // GET /api/pizzas/:id — busca um item específico
 router.get('/pizzas/:id', async (req, res) => {
   try {
