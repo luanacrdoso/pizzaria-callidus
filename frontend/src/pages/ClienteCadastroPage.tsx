@@ -1,99 +1,54 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { cadastrarCliente } from '../api/clienteAuth';
 
 export function ClienteCadastroPage() {
   const navigate = useNavigate();
-
   const [form, setForm] = useState({
-    username: '',
-    senha: '',
-    nome: '',
-    telefone: '',
-    email: ''
+    username: '', senha: '', nome: '', telefone: '', email: '', cpf: '',
+    cep: '', endereco: '', numero: '', bairro: '', cidade: '', estado: ''
   });
-
   const [erro, setErro] = useState('');
 
-  const handleSubmit = async (e: FormEvent) => {
+  const campo = (chave: keyof typeof form) => ({
+    value: form[chave],
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [chave]: e.target.value })
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro('');
-
     try {
       await cadastrarCliente(form);
       navigate('/login');
-    } catch (err: unknown) {
-      setErro(err instanceof Error ? err.message : 'Erro ao cadastrar.');
+    } catch (err: any) {
+      setErro(err.message);
     }
   };
 
   return (
     <div style={{ maxWidth: 360, margin: "40px auto", padding: 16 }}>
       <h1>Criar conta</h1>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <input placeholder="Nome completo" {...campo('nome')} required />
+        <input placeholder="Usuário" {...campo('username')} required />
+        <input placeholder="E-mail" type="email" {...campo('email')} />
+        <input placeholder="Telefone" {...campo('telefone')} />
+        <input placeholder="CPF" {...campo('cpf')} />
+        <input placeholder="Senha" type="password" {...campo('senha')} required />
 
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 8
-        }}
-      >
-        <input
-          placeholder="Nome completo"
-          value={form.nome}
-          onChange={(e) =>
-            setForm({ ...form, nome: e.target.value })
-          }
-          required
-        />
-
-        <input
-          placeholder="Usuário"
-          value={form.username}
-          onChange={(e) =>
-            setForm({ ...form, username: e.target.value })
-          }
-          required
-        />
-
-        <input
-          placeholder="E-mail"
-          type="email"
-          value={form.email}
-          onChange={(e) =>
-            setForm({ ...form, email: e.target.value })
-          }
-        />
-
-        <input
-          placeholder="Telefone"
-          value={form.telefone}
-          onChange={(e) =>
-            setForm({ ...form, telefone: e.target.value })
-          }
-        />
-
-        <input
-          placeholder="Senha"
-          type="password"
-          value={form.senha}
-          onChange={(e) =>
-            setForm({ ...form, senha: e.target.value })
-          }
-          required
-        />
+        <p style={{ marginBottom: 0, fontWeight: "bold" }}>Endereço (opcional, facilita nos pedidos)</p>
+        <input placeholder="CEP" {...campo('cep')} />
+        <input placeholder="Endereço" {...campo('endereco')} />
+        <input placeholder="Número" {...campo('numero')} />
+        <input placeholder="Bairro" {...campo('bairro')} />
+        <input placeholder="Cidade" {...campo('cidade')} />
+        <input placeholder="Estado (UF)" maxLength={2} {...campo('estado')} />
 
         {erro && <p style={{ color: "red" }}>{erro}</p>}
-
-        <button type="submit">
-          Criar conta
-        </button>
+        <button type="submit">Criar conta</button>
       </form>
-
-      <p>
-        <Link to="/login">Já tenho conta</Link>
-      </p>
+      <p><Link to="/login">Já tenho conta</Link></p>
     </div>
   );
 }

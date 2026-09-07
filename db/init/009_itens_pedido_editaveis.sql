@@ -1,0 +1,2 @@
+ALTER TABLE itens_pedido ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo', 'cancelado'));
+ALTER TABLE itens_pedido ADD COLUMN IF NOT EXISTS criado_em TIMESTAMPTZ NOT NULL DEFAULT now();

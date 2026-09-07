@@ -43,3 +43,14 @@ export function verificarAdmin(req: Request, res: Response, next: NextFunction) 
     next();
   });
 }
+
+// Libera qualquer pessoa da equipe (admin ou funcionário), bloqueia clientes
+export function verificarEquipe(req: Request, res: Response, next: NextFunction) {
+  verificarAutenticado(req, res, () => {
+    const usuario = (req as any).usuario as TokenPayload;
+    if (usuario.tipo === 'cliente') {
+      return res.status(403).json({ mensagem: 'Acesso restrito à equipe da pizzaria.' });
+    }
+    next();
+  });
+}

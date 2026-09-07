@@ -38,6 +38,7 @@ return (
       <NavLink to="/admin/reservas-mesa" style={linkStyle}>Reservas de Mesa</NavLink>
       <NavLink to="/admin/cupons" style={linkStyle}>Cupons</NavLink>
       <NavLink to="/admin/funcionarios" style={linkStyle}>Funcionários</NavLink>
+      <NavLink to="/admin/pagamentos-pendentes" style={linkStyle}>Pagamentos Pix</NavLink>
       <button onClick={handleLogout} style={{ marginTop: 'auto' }}>Sair</button>
       <NavLink to="/admin/perfil" style={linkStyle}>Meus Dados</NavLink>
     </nav>

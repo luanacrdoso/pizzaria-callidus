@@ -21,12 +21,18 @@ import { HistoricoPedidosPage } from './pages/HistoricoPedidosPage';
 import { ReservarPage } from './pages/ReservarPage';
 import { ClienteLoginPage } from './pages/ClienteLoginPage';
 import { ClienteCadastroPage } from './pages/ClienteCadastroPage';
+import { ClientePerfilPage } from './pages/ClientePerfilPage';
+import { DetalheProdutoPage } from './pages/DetalheProdutoPage';
+import { AdminPagamentosPendentesPage } from './pages/AdminPagamentosPendentesPage';
+import { AdminPedidoDetalhePage } from './pages/AdminPedidoDetalhePage';
+
 function App() {
  return (
  <Routes>
  {/* Site público (Cliente) */}
  <Route path="/" element={<ClienteLayout />}>
  <Route index element={<CardapioPublicoPage />} />
+ <Route path="produto/:id" element={<DetalheProdutoPage />} />
  <Route path="carrinho" element={<CarrinhoPage />} />
  <Route path="checkout" element={<CheckoutPage />} />
  <Route path="pagamento/:pedidoId" element={<PagamentoPage />} />
@@ -35,8 +41,10 @@ function App() {
  <Route path="reservar" element={<ReservarPage />} />
  <Route path="login" element={<ClienteLoginPage />} />
  <Route path="cadastro" element={<ClienteCadastroPage />} />
+ <Route path="perfil" element={<ClientePerfilPage />} />
  <Route path="esqueci-senha" element={<EsqueciSenhaPage />} />
  </Route>
+
  {/* Painel Admin */}
  <Route path="/admin/login" element={<LoginPage />} />
  <Route path="/admin" element={<RequireAuth><AdminLayout /></RequireAuth>}>
@@ -46,9 +54,11 @@ function App() {
  <Route path="mesas" element={<AdminMesasPage />} />
  <Route path="salao" element={<AdminSalaoPage />} />
  <Route path="funcionarios" element={<AdminFuncionariosPage />} />
+ <Route path="pedidos/:id" element={<AdminPedidoDetalhePage />} />
  <Route path="perfil" element={<AdminPerfilPage />} />
  <Route path="reservas-mesa" element={<AdminReservasMesaPage />} />
  <Route path="cupons" element={<AdminCuponsPage />} />
+ <Route path="pagamentos-pendentes" element={<AdminPagamentosPendentesPage />} />
  </Route>
  <Route path="*" element={<Navigate to="/" replace />} />
  </Routes>

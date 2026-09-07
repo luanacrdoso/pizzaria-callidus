@@ -1,0 +1,3 @@
+ALTER TABLE pedidos DROP CONSTRAINT IF EXISTS pedidos_status_check;
+ALTER TABLE pedidos ADD CONSTRAINT pedidos_status_check
+  CHECK (status IN ('aguardando_pagamento', 'recebido', 'preparo', 'pronto', 'entregue', 'finalizado', 'cancelado'));

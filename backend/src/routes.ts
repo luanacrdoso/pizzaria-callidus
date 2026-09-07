@@ -1,16 +1,16 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import { pool } from './db';
-import { gerarToken, verificarAdmin } from './auth';
+import { enviarCodigoRecuperacao } from './mailer';
+import { gerarToken, verificarAdmin, verificarAutenticado, verificarEquipe } from './auth';
 
 export const router = Router();
 
 function tabelaDoUsuario(tipo: string) {
- if (tipo === 'admin') return 'admins';
- if (tipo === 'cliente') return 'clientes';
- return 'funcionarios';
+  if (tipo === 'admin') return 'admins';
+  if (tipo === 'cliente') return 'clientes';
+  return 'funcionarios';
 }
-
 
 // ========== AUTENTICAÇÃO ==========
 
@@ -35,6 +35,7 @@ router.post('/auth/login', async (req, res) => {
 });
 
 // ========== PIZZAS (CARDÁPIO) ==========
+
 // GET /api/pizzas — lista todo o cardápio
 router.get('/pizzas', async (req, res) => {
   const { visivel } = req.query;
@@ -418,7 +419,7 @@ router.post('/funcionarios', async (req, res) => {
     );
     res.status(201).json(resultado.rows[0]);
   } catch (erro: any) {
-    if (erro.code === '23505') { // código do Postgres pra violação de UNIQUE
+    if (erro.code === '23505') {
       return res.status(409).json({ mensagem: 'Esse nome de usuário já existe.' });
     }
     console.error(erro);
@@ -470,12 +471,9 @@ router.delete('/funcionarios/:id', verificarAdmin, async (req, res) => {
   }
 });
 
-import { enviarCodigoRecuperacao } from './mailer';
-import { verificarAutenticado } from './auth'; // adicionem junto do import que já existe de verificarAdmin
-
 // ========== PERFIL DO USUÁRIO LOGADO ==========
 
-// GET /api/me — dados do usuário logado (admin ou, futuramente, funcionário)
+// GET /api/me — dados do usuário logado (admin, funcionário ou cliente)
 router.get('/me', verificarAutenticado, async (req, res) => {
   const usuario = (req as any).usuario;
   const tabela = tabelaDoUsuario(usuario.tipo);
@@ -563,7 +561,6 @@ router.post('/auth/esqueci-senha', async (req, res) => {
       await enviarCodigoRecuperacao(email, codigo);
     }
 
-    // Mesma resposta exista ou não o e-mail — evita que alguém descubra quais e-mails estão cadastrados
     res.json({ mensagem: 'Se esse e-mail estiver cadastrado, um código foi enviado.' });
   } catch (erro) {
     console.error(erro);
@@ -784,7 +781,6 @@ router.post('/cupons/validar', async (req, res) => {
       valorDesconto = Math.min(Number(cupom.valor), Number(subtotal));
       aplicaEm = 'subtotal';
     } else {
-      // entrega_gratis: zera a taxa de entrega recebida, o campo "valor" do cupom não é usado nesse tipo
       valorDesconto = Number(taxa_entrega) || 0;
       aplicaEm = 'entrega';
     }
@@ -802,132 +798,307 @@ router.post('/cupons/validar', async (req, res) => {
 });
 
 // ========== CLIENTES ==========
+
 router.post('/clientes', async (req, res) => {
- const { username, senha, nome, telefone, email, cep, endereco, numero, bairro, cidade, estado
-} = req.body;
- if (!username || !senha || !nome) {
- return res.status(400).json({ mensagem: 'username, senha e nome são obrigatórios.' });
- }
- try {
- const senhaHash = await bcrypt.hash(senha, 10);
- const resultado = await pool.query(
- `INSERT INTO clientes (username, senha_hash, nome, telefone, email, cep, endereco, numero,
-bairro, cidade, estado)
- VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
- RETURNING id, username, nome, telefone, email, cep, endereco, numero, bairro, cidade,
-estado`,
- [username, senhaHash, nome, telefone, email, cep, endereco, numero, bairro, cidade,
-estado]
- );
- res.status(201).json(resultado.rows[0]);
- } catch (erro: any) {
- if (erro.code === '23505') {
- return res.status(409).json({ mensagem: 'Esse nome de usuário já existe.' });
- }
- console.error(erro);
- res.status(500).json({ mensagem: 'Erro ao cadastrar cliente.' });
- }
-});
-router.post('/auth/cliente/login', async (req, res) => {
- const { username, password } = req.body;
- try {
- const resultado = await pool.query('SELECT * FROM clientes WHERE username = $1',
-[username]);
- const cliente = resultado.rows[0];
- if (!cliente || !(await bcrypt.compare(password, cliente.senha_hash))) {
- return res.status(401).json({ mensagem: 'Usuário ou senha inválidos.' });
- }
- const token = gerarToken({ id: cliente.id, username: cliente.username, tipo: 'cliente' });
- res.json({ token });
- } catch (erro) {
- console.error(erro);
- res.status(500).json({ mensagem: 'Erro ao fazer login.' });
- }
+  const { username, senha, nome, telefone, email, cpf, cep, endereco, numero, bairro, cidade, estado } = req.body;
+
+  if (!username || !senha || !nome) {
+    return res.status(400).json({ mensagem: 'username, senha e nome são obrigatórios.' });
+  }
+
+  try {
+    const senhaHash = await bcrypt.hash(senha, 10);
+    const resultado = await pool.query(
+      `INSERT INTO clientes (username, senha_hash, nome, telefone, email, cpf, cep, endereco, numero, bairro, cidade, estado)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       RETURNING id, username, nome, telefone, email, cpf, cep, endereco, numero, bairro, cidade, estado`,
+      [username, senhaHash, nome, telefone, email, cpf, cep, endereco, numero, bairro, cidade, estado]
+    );
+    res.status(201).json(resultado.rows[0]);
+  } catch (erro: any) {
+    if (erro.code === '23505') {
+      return res.status(409).json({ mensagem: 'Esse nome de usuário já existe.' });
+    }
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao cadastrar cliente.' });
+  }
 });
 
+router.post('/auth/cliente/login', async (req, res) => {
+  const { username, password } = req.body;
+
+  try {
+    const resultado = await pool.query('SELECT * FROM clientes WHERE username = $1', [username]);
+    const cliente = resultado.rows[0];
+
+    if (!cliente || !(await bcrypt.compare(password, cliente.senha_hash))) {
+      return res.status(401).json({ mensagem: 'Usuário ou senha inválidos.' });
+    }
+
+    const token = gerarToken({ id: cliente.id, username: cliente.username, tipo: 'cliente' });
+    res.json({ token });
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao fazer login.' });
+  }
+});
+
+// GET /api/clientes/meu-perfil — dados completos do cliente logado (endereço, CPF)
+router.get('/clientes/meu-perfil', verificarAutenticado, async (req, res) => {
+  const usuario = (req as any).usuario;
+  if (usuario.tipo !== 'cliente') {
+    return res.status(403).json({ mensagem: 'Rota exclusiva para clientes.' });
+  }
+  try {
+    const resultado = await pool.query(
+      `SELECT id, username, nome, telefone, email, cpf, cep, endereco, numero, bairro, cidade, estado
+       FROM clientes WHERE id = $1`,
+      [usuario.id]
+    );
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar perfil.' });
+  }
+});
+
+// PUT /api/clientes/meu-perfil — atualiza dados pessoais e endereço
+router.put('/clientes/meu-perfil', verificarAutenticado, async (req, res) => {
+  const usuario = (req as any).usuario;
+  if (usuario.tipo !== 'cliente') {
+    return res.status(403).json({ mensagem: 'Rota exclusiva para clientes.' });
+  }
+  const { nome, telefone, cpf, cep, endereco, numero, bairro, cidade, estado } = req.body;
+  try {
+    const resultado = await pool.query(
+      `UPDATE clientes SET nome = $1, telefone = $2, cpf = $3, cep = $4, endereco = $5,
+        numero = $6, bairro = $7, cidade = $8, estado = $9
+       WHERE id = $10
+       RETURNING id, username, nome, telefone, email, cpf, cep, endereco, numero, bairro, cidade, estado`,
+      [nome, telefone, cpf, cep, endereco, numero, bairro, cidade, estado, usuario.id]
+    );
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao atualizar perfil.' });
+  }
+});
+
+// ========== PEDIDOS ==========
+
 router.post('/pedidos', async (req, res) => {
- const {
- tipo, cliente_id, cliente_nome, cliente_telefone, mesa_id,
- itens, subtotal, taxa_entrega, total, endereco_entrega,
- cupom_codigo, valor_desconto, forma_pagamento
- } = req.body;
- if (!tipo || !itens || itens.length === 0) {
- return res.status(400).json({ mensagem: 'tipo e itens são obrigatórios.' });
- }
- const client = await pool.connect();
- try {
- await client.query('BEGIN');
- const pedidoResult = await client.query(
- `INSERT INTO pedidos
- (tipo, cliente_id, cliente_nome, cliente_telefone, mesa_id, subtotal, taxa_entrega,
-total,
- endereco_entrega, cupom_codigo, valor_desconto)
- VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
- RETURNING *`,
- [tipo, cliente_id || null, cliente_nome, cliente_telefone, mesa_id || null, subtotal,
- taxa_entrega || 0, total, endereco_entrega, cupom_codigo || null, valor_desconto || 0]
- );
- const pedido = pedidoResult.rows[0];
- for (const item of itens) {
- await client.query(
- `INSERT INTO itens_pedido (pedido_id, pizza_id, nome, tamanho, extras, observacoes,
-quantidade, preco_unitario)
- VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
- [pedido.id, item.pizzaId || null, item.nome, item.tamanho, JSON.stringify(item.extras ||
-[]),
- item.observacoes || null, item.quantidade || 1, item.precoUnitario]
- );
- }
- await client.query(
- `INSERT INTO pedido_pagamentos (pedido_id, nome_pagador, valor_pago, forma_pagamento)
- VALUES ($1,$2,$3,$4)`,
- [pedido.id, cliente_nome, total, forma_pagamento]
- );
- if (cupom_codigo) {
- await client.query('UPDATE cupons SET usos_atuais = usos_atuais + 1 WHERE codigo = $1',
-[cupom_codigo.toUpperCase()]);
- }
- await client.query('COMMIT');
- res.status(201).json(pedido);
- } catch (erro) {
- await client.query('ROLLBACK');
- console.error(erro);
- res.status(500).json({ mensagem: 'Erro ao criar pedido.' });
- } finally {
- client.release();
- }
+  const {
+    tipo, cliente_id, cliente_nome, cliente_telefone, mesa_id,
+    itens, subtotal, taxa_entrega, total, endereco_entrega,
+    cupom_codigo, valor_desconto, forma_pagamento
+  } = req.body;
+
+  if (!tipo || !itens || itens.length === 0) {
+    return res.status(400).json({ mensagem: 'tipo e itens são obrigatórios.' });
+  }
+
+  const statusInicial = forma_pagamento === 'Pix' ? 'aguardando_pagamento' : 'recebido';
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const pedidoResult = await client.query(
+      `INSERT INTO pedidos
+        (tipo, cliente_id, cliente_nome, cliente_telefone, mesa_id, subtotal, taxa_entrega, total,
+         endereco_entrega, cupom_codigo, valor_desconto, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       RETURNING *`,
+      [tipo, cliente_id || null, cliente_nome, cliente_telefone, mesa_id || null, subtotal,
+       taxa_entrega || 0, total, endereco_entrega, cupom_codigo || null, valor_desconto || 0, statusInicial]
+    );
+    const pedido = pedidoResult.rows[0];
+
+    for (const item of itens) {
+      await client.query(
+        `INSERT INTO itens_pedido (pedido_id, pizza_id, nome, tamanho, extras, observacoes, quantidade, preco_unitario)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [pedido.id, item.pizzaId || null, item.nome, item.tamanho, JSON.stringify(item.extras || []),
+         item.observacoes || null, item.quantidade || 1, item.precoUnitario]
+      );
+    }
+
+    await client.query(
+      `INSERT INTO pedido_pagamentos (pedido_id, nome_pagador, valor_pago, forma_pagamento)
+       VALUES ($1,$2,$3,$4)`,
+      [pedido.id, cliente_nome, total, forma_pagamento]
+    );
+
+    if (cupom_codigo) {
+      await client.query('UPDATE cupons SET usos_atuais = usos_atuais + 1 WHERE codigo = $1', [cupom_codigo.toUpperCase()]);
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json(pedido);
+  } catch (erro) {
+    await client.query('ROLLBACK');
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao criar pedido.' });
+  } finally {
+    client.release();
+  }
+});
+
+// IMPORTANTE: /pedidos/meus e as rotas fixas precisam vir ANTES de /pedidos/:id,
+// senão o Express interpreta "meus" como se fosse um :id
+
+router.get('/pedidos/meus', verificarAutenticado, async (req, res) => {
+  const usuario = (req as any).usuario;
+  if (usuario.tipo !== 'cliente') {
+    return res.status(403).json({ mensagem: 'Apenas clientes têm histórico de pedidos.' });
+  }
+  try {
+    const resultado = await pool.query(
+      `SELECT p.*,
+        (SELECT json_agg(i) FROM itens_pedido i WHERE i.pedido_id = p.id) AS itens
+       FROM pedidos p WHERE p.cliente_id = $1 ORDER BY p.criado_em DESC`,
+      [usuario.id]
+    );
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar histórico.' });
+  }
+});
+
+// GET /api/pedidos/pendentes-pagamento — pedidos Pix aguardando confirmação
+router.get('/pedidos/pendentes-pagamento', verificarAdmin, async (_req, res) => {
+  try {
+    const resultado = await pool.query(
+      `SELECT p.*, (SELECT json_agg(i) FROM itens_pedido i WHERE i.pedido_id = p.id) AS itens
+       FROM pedidos p WHERE p.status = 'aguardando_pagamento' ORDER BY p.criado_em`
+    );
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar pagamentos pendentes.' });
+  }
 });
 
 router.get('/pedidos/:id', async (req, res) => {
- try {
- const pedido = await pool.query('SELECT * FROM pedidos WHERE id = $1', [req.params.id]);
- if (pedido.rows.length === 0) {
- return res.status(404).json({ mensagem: 'Pedido não encontrado.' });
- }
- const itens = await pool.query('SELECT * FROM itens_pedido WHERE pedido_id = $1',
-[req.params.id]);
- res.json({ ...pedido.rows[0], itens: itens.rows });
- } catch (erro) {
- console.error(erro);
- res.status(500).json({ mensagem: 'Erro ao buscar pedido.' });
- }
+  try {
+    const pedido = await pool.query('SELECT * FROM pedidos WHERE id = $1', [req.params.id]);
+    if (pedido.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Pedido não encontrado.' });
+    }
+    const itens = await pool.query('SELECT * FROM itens_pedido WHERE pedido_id = $1', [req.params.id]);
+    res.json({ ...pedido.rows[0], itens: itens.rows });
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar pedido.' });
+  }
 });
 
-router.get('/pedidos/meus', verificarAutenticado, async (req, res) => {
- const usuario = (req as any).usuario;
- if (usuario.tipo !== 'cliente') {
- return res.status(403).json({ mensagem: 'Apenas clientes têm histórico de pedidos.' });
- }
- try {
- const resultado = await pool.query(
- `SELECT p.*,
- (SELECT json_agg(i) FROM itens_pedido i WHERE i.pedido_id = p.id) AS itens
- FROM pedidos p WHERE p.cliente_id = $1 ORDER BY p.criado_em DESC`,
- [usuario.id]
- );
- res.json(resultado.rows);
- } catch (erro) {
- console.error(erro);
- res.status(500).json({ mensagem: 'Erro ao buscar histórico.' });
- }
+// PUT /api/pedidos/:id/confirmar-pagamento — Admin confere que o Pix caiu de verdade
+router.put('/pedidos/:id/confirmar-pagamento', verificarAdmin, async (req, res) => {
+  try {
+    const resultado = await pool.query(
+      "UPDATE pedidos SET status = 'recebido' WHERE id = $1 AND status = 'aguardando_pagamento' RETURNING *",
+      [req.params.id]
+    );
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Pedido não encontrado ou já processado.' });
+    }
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao confirmar pagamento.' });
+  }
+});
+
+// PUT /api/pedidos/:id/recusar-pagamento — Admin não encontrou o pagamento na conta
+router.put('/pedidos/:id/recusar-pagamento', verificarAdmin, async (req, res) => {
+  try {
+    const resultado = await pool.query(
+      "UPDATE pedidos SET status = 'cancelado' WHERE id = $1 AND status = 'aguardando_pagamento' RETURNING *",
+      [req.params.id]
+    );
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Pedido não encontrado ou já processado.' });
+    }
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao recusar pagamento.' });
+  }
+});
+
+// ========== EDIÇÃO DE ITENS DE UM PEDIDO (equipe: admin ou funcionário) ==========
+
+async function recalcularTotalPedido(pedidoId: number) {
+  const itensResult = await pool.query(
+    "SELECT preco_unitario, quantidade FROM itens_pedido WHERE pedido_id = $1 AND status = 'ativo'",
+    [pedidoId]
+  );
+  const subtotal = itensResult.rows.reduce((s, i) => s + Number(i.preco_unitario) * i.quantidade, 0);
+
+  const pedidoResult = await pool.query('SELECT taxa_entrega, valor_desconto FROM pedidos WHERE id = $1', [pedidoId]);
+  const { taxa_entrega, valor_desconto } = pedidoResult.rows[0];
+  const total = Math.max(0, subtotal + Number(taxa_entrega) - Number(valor_desconto));
+
+  await pool.query('UPDATE pedidos SET subtotal = $1, total = $2 WHERE id = $3', [subtotal, total, pedidoId]);
+}
+
+// POST /api/pedidos/:id/itens — equipe adiciona um item extra a um pedido já em andamento
+router.post('/pedidos/:id/itens', verificarEquipe, async (req, res) => {
+  const { nome, tamanho, extras, observacoes, quantidade, preco_unitario, pizza_id } = req.body;
+
+  if (!nome || !preco_unitario) {
+    return res.status(400).json({ mensagem: 'nome e preco_unitario são obrigatórios.' });
+  }
+
+  try {
+    const resultado = await pool.query(
+      `INSERT INTO itens_pedido (pedido_id, pizza_id, nome, tamanho, extras, observacoes, quantidade, preco_unitario)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [req.params.id, pizza_id || null, nome, tamanho || '', JSON.stringify(extras || []), observacoes || null, quantidade || 1, preco_unitario]
+    );
+    await recalcularTotalPedido(Number(req.params.id));
+    res.status(201).json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao adicionar item.' });
+  }
+});
+
+// PUT /api/pedidos/:id/itens/:itemId/cancelar — equipe cancela um item específico (risca, não apaga)
+router.put('/pedidos/:id/itens/:itemId/cancelar', verificarEquipe, async (req, res) => {
+  try {
+    const resultado = await pool.query(
+      "UPDATE itens_pedido SET status = 'cancelado' WHERE id = $1 AND pedido_id = $2 RETURNING *",
+      [req.params.itemId, req.params.id]
+    );
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Item não encontrado.' });
+    }
+    await recalcularTotalPedido(Number(req.params.id));
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao cancelar item.' });
+  }
+});
+
+// PUT /api/pedidos/:id/status — equipe muda o status geral (inclui cancelar o pedido inteiro)
+router.put('/pedidos/:id/status', verificarEquipe, async (req, res) => {
+  const { status } = req.body;
+  const validos = ['aguardando_pagamento', 'recebido', 'preparo', 'pronto', 'entregue', 'finalizado', 'cancelado'];
+  if (!validos.includes(status)) {
+    return res.status(400).json({ mensagem: 'status inválido.' });
+  }
+  try {
+    const resultado = await pool.query('UPDATE pedidos SET status = $1 WHERE id = $2 RETURNING *', [status, req.params.id]);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Pedido não encontrado.' });
+    }
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao atualizar status.' });
+  }
 });
