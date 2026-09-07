@@ -5,6 +5,13 @@ import { gerarToken, verificarAdmin } from './auth';
 
 export const router = Router();
 
+function tabelaDoUsuario(tipo: string) {
+ if (tipo === 'admin') return 'admins';
+ if (tipo === 'cliente') return 'clientes';
+ return 'funcionarios';
+}
+
+
 // ========== AUTENTICAÇÃO ==========
 
 // POST /api/auth/login — login do Admin (agora validado contra o banco)
@@ -28,18 +35,7 @@ router.post('/auth/login', async (req, res) => {
 });
 
 // ========== PIZZAS (CARDÁPIO) ==========
-
 // GET /api/pizzas — lista todo o cardápio
-router.get('/pizzas', async (_req, res) => {
-  try {
-    const resultado = await pool.query('SELECT * FROM pizzas ORDER BY criado_em DESC');
-    res.json(resultado.rows);
-  } catch (erro) {
-    console.error(erro);
-    res.status(500).json({ mensagem: 'Erro ao buscar cardápio.' });
-  }
-});
-
 // GET /api/pizzas/:id — busca um item específico
 router.get('/pizzas/:id', async (req, res) => {
   try {
@@ -468,7 +464,7 @@ import { verificarAutenticado } from './auth'; // adicionem junto do import que 
 // GET /api/me — dados do usuário logado (admin ou, futuramente, funcionário)
 router.get('/me', verificarAutenticado, async (req, res) => {
   const usuario = (req as any).usuario;
-  const tabela = usuario.tipo === 'admin' ? 'admins' : 'funcionarios';
+  const tabela = tabelaDoUsuario(usuario.tipo);
 
   try {
     const resultado = await pool.query(`SELECT id, username, email FROM ${tabela} WHERE id = $1`, [usuario.id]);
@@ -483,7 +479,7 @@ router.get('/me', verificarAutenticado, async (req, res) => {
 router.put('/me', verificarAutenticado, async (req, res) => {
   const usuario = (req as any).usuario;
   const { username, email, senha_atual } = req.body;
-  const tabela = usuario.tipo === 'admin' ? 'admins' : 'funcionarios';
+  const tabela = tabelaDoUsuario(usuario.tipo);
 
   try {
     const atual = await pool.query(`SELECT senha_hash FROM ${tabela} WHERE id = $1`, [usuario.id]);
@@ -509,7 +505,7 @@ router.put('/me', verificarAutenticado, async (req, res) => {
 router.put('/me/senha', verificarAutenticado, async (req, res) => {
   const usuario = (req as any).usuario;
   const { senha_atual, nova_senha } = req.body;
-  const tabela = usuario.tipo === 'admin' ? 'admins' : 'funcionarios';
+  const tabela = tabelaDoUsuario(usuario.tipo);
 
   if (!nova_senha || nova_senha.length < 6) {
     return res.status(400).json({ mensagem: 'A nova senha precisa ter pelo menos 6 caracteres.' });
@@ -540,8 +536,9 @@ router.post('/auth/esqueci-senha', async (req, res) => {
   try {
     const existeAdmin = await pool.query('SELECT id FROM admins WHERE email = $1', [email]);
     const existeFuncionario = await pool.query('SELECT id FROM funcionarios WHERE email = $1', [email]);
+    const existeCliente = await pool.query('SELECT id FROM clientes WHERE email = $1', [email]);
 
-    if (existeAdmin.rows.length > 0 || existeFuncionario.rows.length > 0) {
+    if (existeAdmin.rows.length > 0 || existeFuncionario.rows.length > 0 || existeCliente.rows.length > 0) {
       const codigo = Math.floor(100000 + Math.random() * 900000).toString();
       const expiraEm = new Date(Date.now() + 15 * 60 * 1000);
 
@@ -583,7 +580,10 @@ router.post('/auth/redefinir-senha', async (req, res) => {
     const novoHash = await bcrypt.hash(nova_senha, 10);
     const admin = await pool.query('UPDATE admins SET senha_hash = $1 WHERE email = $2 RETURNING id', [novoHash, email]);
     if (admin.rows.length === 0) {
-      await pool.query('UPDATE funcionarios SET senha_hash = $1 WHERE email = $2', [novoHash, email]);
+      const funcionario = await pool.query('UPDATE funcionarios SET senha_hash = $1 WHERE email = $2 RETURNING id', [novoHash, email]);
+      if (funcionario.rows.length === 0) {
+        await pool.query('UPDATE clientes SET senha_hash = $1 WHERE email = $2', [novoHash, email]);
+      }
     }
 
     await pool.query('UPDATE codigos_recuperacao SET usado = true WHERE id = $1', [resultadoCodigo.rows[0].id]);
@@ -785,4 +785,135 @@ router.post('/cupons/validar', async (req, res) => {
     console.error(erro);
     res.status(500).json({ mensagem: 'Erro ao validar cupom.' });
   }
+});
+
+// ========== CLIENTES ==========
+router.post('/clientes', async (req, res) => {
+ const { username, senha, nome, telefone, email, cep, endereco, numero, bairro, cidade, estado
+} = req.body;
+ if (!username || !senha || !nome) {
+ return res.status(400).json({ mensagem: 'username, senha e nome são obrigatórios.' });
+ }
+ try {
+ const senhaHash = await bcrypt.hash(senha, 10);
+ const resultado = await pool.query(
+ `INSERT INTO clientes (username, senha_hash, nome, telefone, email, cep, endereco, numero,
+bairro, cidade, estado)
+ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+ RETURNING id, username, nome, telefone, email, cep, endereco, numero, bairro, cidade,
+estado`,
+ [username, senhaHash, nome, telefone, email, cep, endereco, numero, bairro, cidade,
+estado]
+ );
+ res.status(201).json(resultado.rows[0]);
+ } catch (erro: any) {
+ if (erro.code === '23505') {
+ return res.status(409).json({ mensagem: 'Esse nome de usuário já existe.' });
+ }
+ console.error(erro);
+ res.status(500).json({ mensagem: 'Erro ao cadastrar cliente.' });
+ }
+});
+router.post('/auth/cliente/login', async (req, res) => {
+ const { username, password } = req.body;
+ try {
+ const resultado = await pool.query('SELECT * FROM clientes WHERE username = $1',
+[username]);
+ const cliente = resultado.rows[0];
+ if (!cliente || !(await bcrypt.compare(password, cliente.senha_hash))) {
+ return res.status(401).json({ mensagem: 'Usuário ou senha inválidos.' });
+ }
+ const token = gerarToken({ id: cliente.id, username: cliente.username, tipo: 'cliente' });
+ res.json({ token });
+ } catch (erro) {
+ console.error(erro);
+ res.status(500).json({ mensagem: 'Erro ao fazer login.' });
+ }
+});
+
+router.post('/pedidos', async (req, res) => {
+ const {
+ tipo, cliente_id, cliente_nome, cliente_telefone, mesa_id,
+ itens, subtotal, taxa_entrega, total, endereco_entrega,
+ cupom_codigo, valor_desconto, forma_pagamento
+ } = req.body;
+ if (!tipo || !itens || itens.length === 0) {
+ return res.status(400).json({ mensagem: 'tipo e itens são obrigatórios.' });
+ }
+ const client = await pool.connect();
+ try {
+ await client.query('BEGIN');
+ const pedidoResult = await client.query(
+ `INSERT INTO pedidos
+ (tipo, cliente_id, cliente_nome, cliente_telefone, mesa_id, subtotal, taxa_entrega,
+total,
+ endereco_entrega, cupom_codigo, valor_desconto)
+ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+ RETURNING *`,
+ [tipo, cliente_id || null, cliente_nome, cliente_telefone, mesa_id || null, subtotal,
+ taxa_entrega || 0, total, endereco_entrega, cupom_codigo || null, valor_desconto || 0]
+ );
+ const pedido = pedidoResult.rows[0];
+ for (const item of itens) {
+ await client.query(
+ `INSERT INTO itens_pedido (pedido_id, pizza_id, nome, tamanho, extras, observacoes,
+quantidade, preco_unitario)
+ VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+ [pedido.id, item.pizzaId || null, item.nome, item.tamanho, JSON.stringify(item.extras ||
+[]),
+ item.observacoes || null, item.quantidade || 1, item.precoUnitario]
+ );
+ }
+ await client.query(
+ `INSERT INTO pedido_pagamentos (pedido_id, nome_pagador, valor_pago, forma_pagamento)
+ VALUES ($1,$2,$3,$4)`,
+ [pedido.id, cliente_nome, total, forma_pagamento]
+ );
+ if (cupom_codigo) {
+ await client.query('UPDATE cupons SET usos_atuais = usos_atuais + 1 WHERE codigo = $1',
+[cupom_codigo.toUpperCase()]);
+ }
+ await client.query('COMMIT');
+ res.status(201).json(pedido);
+ } catch (erro) {
+ await client.query('ROLLBACK');
+ console.error(erro);
+ res.status(500).json({ mensagem: 'Erro ao criar pedido.' });
+ } finally {
+ client.release();
+ }
+});
+
+router.get('/pedidos/:id', async (req, res) => {
+ try {
+ const pedido = await pool.query('SELECT * FROM pedidos WHERE id = $1', [req.params.id]);
+ if (pedido.rows.length === 0) {
+ return res.status(404).json({ mensagem: 'Pedido não encontrado.' });
+ }
+ const itens = await pool.query('SELECT * FROM itens_pedido WHERE pedido_id = $1',
+[req.params.id]);
+ res.json({ ...pedido.rows[0], itens: itens.rows });
+ } catch (erro) {
+ console.error(erro);
+ res.status(500).json({ mensagem: 'Erro ao buscar pedido.' });
+ }
+});
+
+router.get('/pedidos/meus', verificarAutenticado, async (req, res) => {
+ const usuario = (req as any).usuario;
+ if (usuario.tipo !== 'cliente') {
+ return res.status(403).json({ mensagem: 'Apenas clientes têm histórico de pedidos.' });
+ }
+ try {
+ const resultado = await pool.query(
+ `SELECT p.*,
+ (SELECT json_agg(i) FROM itens_pedido i WHERE i.pedido_id = p.id) AS itens
+ FROM pedidos p WHERE p.cliente_id = $1 ORDER BY p.criado_em DESC`,
+ [usuario.id]
+ );
+ res.json(resultado.rows);
+ } catch (erro) {
+ console.error(erro);
+ res.status(500).json({ mensagem: 'Erro ao buscar histórico.' });
+ }
 });

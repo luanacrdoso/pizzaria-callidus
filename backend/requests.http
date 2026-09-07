@@ -335,3 +335,96 @@ POST http://localhost:3000/api/cupons/validar
 Content-Type: application/json
 
 { "codigo": "FRETEGRATIS", "subtotal": 60, "taxa_entrega": 7.5 }
+
+### ============================================
+### TESTE - CADASTRO DE CLIENTE
+### ============================================
+
+POST http://localhost:3000/api/clientes
+Content-Type: application/json
+
+{
+  "username": "vinizx_teste",
+  "senha": "123456",
+  "nome": "Vinizx Teste",
+  "telefone": "92999999999",
+  "email": "vinizx.teste@email.com",
+  "cep": "69000000",
+  "endereco": "Rua Teste",
+  "numero": "123",
+  "bairro": "Centro",
+  "cidade": "Manaus",
+  "estado": "AM"
+}
+
+
+### ============================================
+### TESTE - LOGIN DE CLIENTE
+### ============================================
+
+POST http://localhost:3000/api/auth/cliente/login
+Content-Type: application/json
+
+{
+  "username": "vinizx_teste",
+  "password": "123456"
+}
+
+### CADASTRO DE CLIENTE
+POST http://localhost:3000/api/clientes
+Content-Type: application/json
+
+{
+  "username": "vinizx_teste",
+  "senha": "123456",
+  "nome": "Vinizx Teste",
+  "telefone": "92999999999",
+  "email": "vinizx.teste@email.com",
+  "cep": "69000000",
+  "endereco": "Rua Teste",
+  "numero": "123",
+  "bairro": "Centro",
+  "cidade": "Manaus",
+  "estado": "AM"
+}
+
+###
+
+### LOGIN DE CLIENTE
+POST http://localhost:3000/api/auth/cliente/login
+Content-Type: application/json
+
+{
+  "username": "vinizx_teste",
+  "password": "123456"
+}
+
+### CADASTRO CLIENTE
+POST http://localhost:3000/api/clientes
+Content-Type: application/json
+
+{
+  "username": "cliente_teste_final",
+  "senha": "123456",
+  "nome": "Cliente Teste",
+  "telefone": "92999999999",
+  "email": "cliente.teste.final@email.com",
+  "cep": "69000000",
+  "endereco": "Rua Teste",
+  "numero": "123",
+  "bairro": "Centro",
+  "cidade": "Manaus",
+  "estado": "AM"
+}
+
+### LOGIN CLIENTE
+POST http://localhost:3000/api/auth/cliente/login
+Content-Type: application/json
+
+{
+  "username": "cliente_teste_final",
+  "password": "123456"
+}
+### PERFIL CLIENTE
+GET http://localhost:3000/api/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwidXNlcm5hbWUiOiJjbGllbnRlX3Rlc3RlX2ZpbmFsIiwidGlwbyI6ImNsaWVudGUiLCJpYXQiOjE3ODg3NjkyNDYsImV4cCI6MTc4ODc5ODA0Nn0.WkDt7AGLNJnK1dcUBF1CCX0jQVkDDRTcU5Ds2gUgVTs

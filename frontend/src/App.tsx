@@ -1,36 +1,57 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AdminLayout } from './layouts/AdminLayout';
+import { ClienteLayout } from './layouts/ClienteLayout';
 import { AdminCardapioPage } from './pages/AdminCardapioPage';
 import { AdminConfigPage } from './pages/AdminConfigPage';
 import { AdminMesasPage } from './pages/AdminMesasPage';
 import { AdminSalaoPage } from './pages/AdminSalaoPage';
 import { AdminFuncionariosPage } from './pages/AdminFuncionariosPage';
 import { AdminPerfilPage } from './pages/AdminPerfilPage';
+import { AdminReservasMesaPage } from './pages/AdminReservasMesaPage';
+import { AdminCuponsPage } from './pages/AdminCuponsPage';
 import { LoginPage } from './pages/LoginPage';
 import { EsqueciSenhaPage } from './pages/EsqueciSenhaPage';
 import { RequireAuth } from './components/RequireAuth';
-import { AdminReservasMesaPage } from './pages/AdminReservasMesaPage';
-import { AdminCuponsPage } from './pages/AdminCuponsPage';
-
+import { CardapioPublicoPage } from './pages/CardapioPublicoPage';
+import { CarrinhoPage } from './pages/CarrinhoPage';
+import { CheckoutPage } from './pages/CheckoutPage';
+import { PagamentoPage } from './pages/PagamentoPage';
+import { AcompanhamentoPage } from './pages/AcompanhamentoPage';
+import { HistoricoPedidosPage } from './pages/HistoricoPedidosPage';
+import { ReservarPage } from './pages/ReservarPage';
+import { ClienteLoginPage } from './pages/ClienteLoginPage';
+import { ClienteCadastroPage } from './pages/ClienteCadastroPage';
 function App() {
-  return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/esqueci-senha" element={<EsqueciSenhaPage />} />
-      <Route path="/admin" element={<RequireAuth><AdminLayout /></RequireAuth>}>
-        <Route index element={<Navigate to="cardapio" replace />} />
-        <Route path="cardapio" element={<AdminCardapioPage />} />
-        <Route path="config" element={<AdminConfigPage />} />
-        <Route path="mesas" element={<AdminMesasPage />} />
-        <Route path="salao" element={<AdminSalaoPage />} />
-        <Route path="reservas-mesa" element={<AdminReservasMesaPage />} />
-        <Route path="cupons" element={<AdminCuponsPage />} />
-        <Route path="funcionarios" element={<AdminFuncionariosPage />} />
-        <Route path="perfil" element={<AdminPerfilPage />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/admin" replace />} />
-    </Routes>
-  );
+ return (
+ <Routes>
+ {/* Site público (Cliente) */}
+ <Route path="/" element={<ClienteLayout />}>
+ <Route index element={<CardapioPublicoPage />} />
+ <Route path="carrinho" element={<CarrinhoPage />} />
+ <Route path="checkout" element={<CheckoutPage />} />
+ <Route path="pagamento/:pedidoId" element={<PagamentoPage />} />
+ <Route path="pedido/:pedidoId" element={<AcompanhamentoPage />} />
+ <Route path="meus-pedidos" element={<HistoricoPedidosPage />} />
+ <Route path="reservar" element={<ReservarPage />} />
+ <Route path="login" element={<ClienteLoginPage />} />
+ <Route path="cadastro" element={<ClienteCadastroPage />} />
+ <Route path="esqueci-senha" element={<EsqueciSenhaPage />} />
+ </Route>
+ {/* Painel Admin */}
+ <Route path="/admin/login" element={<LoginPage />} />
+ <Route path="/admin" element={<RequireAuth><AdminLayout /></RequireAuth>}>
+ <Route index element={<Navigate to="cardapio" replace />} />
+ <Route path="cardapio" element={<AdminCardapioPage />} />
+ <Route path="config" element={<AdminConfigPage />} />
+ <Route path="mesas" element={<AdminMesasPage />} />
+ <Route path="salao" element={<AdminSalaoPage />} />
+ <Route path="funcionarios" element={<AdminFuncionariosPage />} />
+ <Route path="perfil" element={<AdminPerfilPage />} />
+ <Route path="reservas-mesa" element={<AdminReservasMesaPage />} />
+ <Route path="cupons" element={<AdminCuponsPage />} />
+ </Route>
+ <Route path="*" element={<Navigate to="/" replace />} />
+ </Routes>
+ );
 }
-
 export default App;

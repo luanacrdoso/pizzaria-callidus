@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS clientes (
+ id SERIAL PRIMARY KEY,
+ username VARCHAR(50) UNIQUE NOT NULL,
+ senha_hash TEXT NOT NULL,
+ nome VARCHAR(120) NOT NULL,
+ telefone VARCHAR(20),
+ email VARCHAR(120),
+ cep VARCHAR(10),
+ endereco VARCHAR(200),
+ numero VARCHAR(10),
+ bairro VARCHAR(100),
+ cidade VARCHAR(100),
+ estado VARCHAR(2),
+ criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clientes(id);
