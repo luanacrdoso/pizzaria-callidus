@@ -2,8 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import { pool } from './db';
 import { enviarCodigoRecuperacao } from './mailer';
-import { gerarToken, verificarAdmin, verificarAutenticado, verificarEquipe } from './auth';
-
+import { gerarToken, verificarAdmin, verificarAutenticado, verificarEquipe, verificarCargo } from './auth';
 export const router = Router();
 
 function tabelaDoUsuario(tipo: string) {
@@ -28,6 +27,31 @@ router.post('/auth/login', async (req, res) => {
 
     const token = gerarToken({ id: admin.id, username: admin.username, tipo: 'admin' });
     res.json({ token });
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao fazer login.' });
+  }
+});
+
+// POST /api/auth/funcionario/login — login de Balcão, Cozinha, Garçom, Motoboy
+router.post('/auth/funcionario/login', async (req, res) => {
+  const { username, password } = req.body;
+
+  try {
+    const resultado = await pool.query('SELECT * FROM funcionarios WHERE username = $1', [username]);
+    const funcionario = resultado.rows[0];
+
+    if (!funcionario || !(await bcrypt.compare(password, funcionario.senha_hash))) {
+      return res.status(401).json({ mensagem: 'Usuário ou senha inválidos.' });
+    }
+    if (!funcionario.aprovado) {
+      return res.status(403).json({ mensagem: 'Seu cadastro ainda não foi aprovado pelo Admin.' });
+    }
+
+    const token = gerarToken({
+      id: funcionario.id, username: funcionario.username, tipo: 'funcionario', cargo: funcionario.cargo
+    });
+    res.json({ token, cargo: funcionario.cargo, nome: funcionario.nome });
   } catch (erro) {
     console.error(erro);
     res.status(500).json({ mensagem: 'Erro ao fazer login.' });
@@ -248,7 +272,7 @@ router.get('/mesas', async (_req, res) => {
 });
 
 // POST /api/mesas — cria uma mesa nova
-router.post('/mesas', async (req, res) => {
+router.post('/mesas', verificarEquipe, async (req, res) => {
   const { numero, capacidade, nome } = req.body;
 
   if (!numero || !capacidade) {
@@ -268,7 +292,7 @@ router.post('/mesas', async (req, res) => {
 });
 
 // PUT /api/mesas/:id — edita nome, capacidade ou status de uma mesa
-router.put('/mesas/:id', async (req, res) => {
+router.put('/mesas/:id', verificarEquipe, async (req, res) => {
   const { capacidade, status, nome } = req.body;
 
   try {
@@ -287,7 +311,7 @@ router.put('/mesas/:id', async (req, res) => {
 });
 
 // DELETE /api/mesas/:id
-router.delete('/mesas/:id', async (req, res) => {
+router.delete('/mesas/:id', verificarEquipe, async (req, res) => {
   try {
     const resultado = await pool.query('DELETE FROM mesas WHERE id = $1 RETURNING id', [req.params.id]);
     if (resultado.rows.length === 0) {
@@ -1084,13 +1108,22 @@ router.put('/pedidos/:id/itens/:itemId/cancelar', verificarEquipe, async (req, r
   }
 });
 
-// PUT /api/pedidos/:id/status — equipe muda o status geral (inclui cancelar o pedido inteiro)
-router.put('/pedidos/:id/status', verificarEquipe, async (req, res) => {
+// PUT /api/pedidos/:id/status — equipe muda o status; cozinha só pode ir pra preparo/pronto
+router.put('/pedidos/:id/status', verificarAutenticado, async (req, res) => {
+  const usuario = (req as any).usuario;
   const { status } = req.body;
   const validos = ['aguardando_pagamento', 'recebido', 'preparo', 'pronto', 'entregue', 'finalizado', 'cancelado'];
+
+  if (usuario.tipo === 'cliente') {
+    return res.status(403).json({ mensagem: 'Acesso restrito à equipe da pizzaria.' });
+  }
   if (!validos.includes(status)) {
     return res.status(400).json({ mensagem: 'status inválido.' });
   }
+  if (usuario.tipo === 'funcionario' && usuario.cargo === 'cozinha' && !['preparo', 'pronto'].includes(status)) {
+    return res.status(403).json({ mensagem: 'Cozinha só pode alterar o status para preparo ou pronto.' });
+  }
+
   try {
     const resultado = await pool.query('UPDATE pedidos SET status = $1 WHERE id = $2 RETURNING *', [status, req.params.id]);
     if (resultado.rows.length === 0) {

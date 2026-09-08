@@ -54,3 +54,17 @@ export function verificarEquipe(req: Request, res: Response, next: NextFunction)
     next();
   });
 }
+
+// Libera admin sempre; libera funcionário só se o cargo dele estiver na lista permitida
+export function verificarCargo(...cargosPermitidos: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    verificarAutenticado(req, res, () => {
+      const usuario = (req as any).usuario as TokenPayload;
+      if (usuario.tipo === 'admin') return next();
+      if (usuario.tipo === 'funcionario' && usuario.cargo && cargosPermitidos.includes(usuario.cargo)) {
+        return next();
+      }
+      return res.status(403).json({ mensagem: 'Sem permissão para esta ação.' });
+    });
+  };
+}

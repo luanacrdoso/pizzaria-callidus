@@ -8,6 +8,11 @@ export interface Mesa {
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+function headerAutenticacao(): HeadersInit {
+  const token = localStorage.getItem('admin_token') || localStorage.getItem('equipe_token');
+  return { Authorization: `Bearer ${token}` };
+}
+
 export async function buscarMesas(): Promise<Mesa[]> {
   const resposta = await fetch(`${API_URL}/mesas`);
   if (!resposta.ok) throw new Error('Erro ao buscar mesas.');
@@ -17,7 +22,7 @@ export async function buscarMesas(): Promise<Mesa[]> {
 export async function criarMesa(dados: { numero: number; capacidade: number }): Promise<Mesa> {
   const resposta = await fetch(`${API_URL}/mesas`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headerAutenticacao() },
     body: JSON.stringify(dados)
   });
   if (!resposta.ok) throw new Error('Erro ao criar mesa.');
@@ -27,7 +32,7 @@ export async function criarMesa(dados: { numero: number; capacidade: number }): 
 export async function editarMesa(mesa: Mesa): Promise<Mesa> {
   const resposta = await fetch(`${API_URL}/mesas/${mesa.id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headerAutenticacao() },
     body: JSON.stringify({ capacidade: mesa.capacidade, status: mesa.status, nome: mesa.nome })
   });
   if (!resposta.ok) throw new Error('Erro ao editar mesa.');
@@ -35,6 +40,6 @@ export async function editarMesa(mesa: Mesa): Promise<Mesa> {
 }
 
 export async function excluirMesa(id: number): Promise<void> {
-  const resposta = await fetch(`${API_URL}/mesas/${id}`, { method: 'DELETE' });
+  const resposta = await fetch(`${API_URL}/mesas/${id}`, { method: 'DELETE', headers: headerAutenticacao() });
   if (!resposta.ok) throw new Error('Erro ao excluir mesa.');
 }

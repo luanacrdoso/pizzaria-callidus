@@ -428,3 +428,16 @@ Content-Type: application/json
 ### PERFIL CLIENTE
 GET http://localhost:3000/api/me
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwidXNlcm5hbWUiOiJjbGllbnRlX3Rlc3RlX2ZpbmFsIiwidGlwbyI6ImNsaWVudGUiLCJpYXQiOjE3ODg3NjkyNDYsImV4cCI6MTc4ODc5ODA0Nn0.WkDt7AGLNJnK1dcUBF1CCX0jQVkDDRTcU5Ds2gUgVTs
+
+
+### Cadastrar um balconista de teste
+POST http://localhost:3000/api/funcionarios
+Content-Type: application/json
+
+{
+  "username": "joao_balcao",
+  "senha": "123456",
+  "nome": "João",
+  "telefone": "(11) 90000-1111",
+  "cargo": "balcao"
+}

@@ -25,6 +25,10 @@ import { ClientePerfilPage } from './pages/ClientePerfilPage';
 import { DetalheProdutoPage } from './pages/DetalheProdutoPage';
 import { AdminPagamentosPendentesPage } from './pages/AdminPagamentosPendentesPage';
 import { AdminPedidoDetalhePage } from './pages/AdminPedidoDetalhePage';
+import { FuncionarioLoginPage } from './pages/FuncionarioLoginPage';
+import { EquipeHomePage } from './pages/EquipeHomePage';
+import { FuncionarioCadastroPage } from './pages/FuncionarioCadastroPage';
+
 
 function App() {
  return (
@@ -47,6 +51,9 @@ function App() {
 
  {/* Painel Admin */}
  <Route path="/admin/login" element={<LoginPage />} />
+ <Route path="/equipe/login" element={<FuncionarioLoginPage />} />
+<Route path="/equipe" element={<EquipeHomePage />} />
+<Route path="/equipe/cadastro" element={<FuncionarioCadastroPage />} />
  <Route path="/admin" element={<RequireAuth><AdminLayout /></RequireAuth>}>
  <Route index element={<Navigate to="cardapio" replace />} />
  <Route path="cardapio" element={<AdminCardapioPage />} />
