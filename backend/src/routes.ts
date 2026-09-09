@@ -1004,6 +1004,36 @@ router.get('/pedidos/pendentes-pagamento', verificarAdmin, async (_req, res) => 
   }
 });
 
+// GET /api/pedidos/retirada — pedidos tipo retirada ainda não finalizados (Balcão)
+router.get('/pedidos/retirada', verificarEquipe, async (_req, res) => {
+  try {
+    const resultado = await pool.query(
+      `SELECT p.*, (SELECT json_agg(i) FROM itens_pedido i WHERE i.pedido_id = p.id) AS itens 
+       FROM pedidos p WHERE p.tipo = 'retirada' AND p.status NOT IN ('finalizado','cancelado') 
+       ORDER BY p.criado_em`
+    );
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar pedidos de retirada.' });
+  }
+});
+
+// GET /api/pedidos/cozinha — fila de pedidos a preparar (Cozinha e Balcão)
+router.get('/pedidos/cozinha', verificarCargo('cozinha', 'balcao'), async (_req, res) => {
+  try {
+    const resultado = await pool.query(
+      `SELECT p.*, (SELECT json_agg(i) FROM itens_pedido i WHERE i.pedido_id = p.id) AS itens 
+       FROM pedidos p WHERE p.status IN ('recebido', 'preparo') 
+       ORDER BY p.criado_em`
+    );
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar fila da cozinha.' });
+  }
+});
+
 router.get('/pedidos/:id', async (req, res) => {
   try {
     const pedido = await pool.query('SELECT * FROM pedidos WHERE id = $1', [req.params.id]);
