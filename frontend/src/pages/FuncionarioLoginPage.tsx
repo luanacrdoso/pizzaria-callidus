@@ -29,6 +29,7 @@ export function FuncionarioLoginPage() {
         <button type="submit">Entrar</button>
       </form>
       <p><Link to="/equipe/cadastro">Criar cadastro</Link></p>
+      <p><Link to="/equipe/cadastro">Criar cadastro</Link> · <Link to="/esqueci-senha">Esqueci minha senha</Link></p>
     </div>
   );
 }

@@ -428,7 +428,7 @@ router.put('/reservas-salao/:id', async (req, res) => {
 
 // POST /api/funcionarios — cadastro (público, fica pendente até o Admin aprovar)
 router.post('/funcionarios', async (req, res) => {
-  const { username, senha, nome, telefone, cargo } = req.body;
+  const { username, senha, nome, telefone, email, cargo } = req.body;
 
   if (!username || !senha || !nome || !cargo) {
     return res.status(400).json({ mensagem: 'username, senha, nome e cargo são obrigatórios.' });
@@ -437,9 +437,9 @@ router.post('/funcionarios', async (req, res) => {
   try {
     const senhaHash = await bcrypt.hash(senha, 10);
     const resultado = await pool.query(
-      `INSERT INTO funcionarios (username, senha_hash, nome, telefone, cargo)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id, username, nome, telefone, cargo, aprovado`,
-      [username, senhaHash, nome, telefone, cargo]
+      `INSERT INTO funcionarios (username, senha_hash, nome, telefone, email, cargo)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, nome, telefone, email, cargo, aprovado`,
+      [username, senhaHash, nome, telefone, email, cargo]
     );
     res.status(201).json(resultado.rows[0]);
   } catch (erro: any) {
@@ -1008,9 +1008,11 @@ router.get('/pedidos/pendentes-pagamento', verificarAdmin, async (_req, res) => 
 router.get('/pedidos/retirada', verificarEquipe, async (_req, res) => {
   try {
     const resultado = await pool.query(
-      `SELECT p.*, (SELECT json_agg(i) FROM itens_pedido i WHERE i.pedido_id = p.id) AS itens 
-       FROM pedidos p WHERE p.tipo = 'retirada' AND p.status NOT IN ('finalizado','cancelado') 
-       ORDER BY p.criado_em`
+      `SELECT p.*, (SELECT json_agg(i) FROM itens_pedido i WHERE i.pedido_id = p.id) AS itens
+      FROM pedidos p
+      WHERE p.tipo = 'retirada'
+        AND (p.status NOT IN ('entregue', 'cancelado') OR (p.status = 'entregue' AND p.atualizado_em::date = current_date))
+      ORDER BY p.criado_em`
     );
     res.json(resultado.rows);
   } catch (erro) {
@@ -1155,7 +1157,7 @@ router.put('/pedidos/:id/status', verificarAutenticado, async (req, res) => {
   }
 
   try {
-    const resultado = await pool.query('UPDATE pedidos SET status = $1 WHERE id = $2 RETURNING *', [status, req.params.id]);
+    const resultado = await pool.query('UPDATE pedidos SET status = $1, atualizado_em = now() WHERE id = $2 RETURNING *', [status, req.params.id]);
     if (resultado.rows.length === 0) {
       return res.status(404).json({ mensagem: 'Pedido não encontrado.' });
     }
