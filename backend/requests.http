@@ -441,3 +441,21 @@ Content-Type: application/json
   "telefone": "(11) 90000-1111",
   "cargo": "balcao"
 }
+
+###testes
+
+POST http://localhost:3000/api/auth/funcionario/login
+Content-Type: application/json
+
+{
+  "username": "guizo_cozinha",
+  "password": "123"
+}
+
+### Buscar fila da cozinha (Usando Token do Balcão)
+GET http://localhost:3000/api/pedidos/cozinha
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwidXNlcm5hbWUiOiJndWl6b19jb3ppbmhhIiwidGlwbyI6ImZ1bmNpb25hcmlvIiwiY2FyZ28iOiJjb3ppbmhhIiwiaWF0IjoxNzg4OTY2NzYzLCJleHAiOjE3ODg5OTU1NjN9.dEaoDHqAXLl0J_nKjUw0ZTwsKQYxSlBH15JvvL-8k-E
+
+### Buscar pedidos de retirada (Usando Token do Balcão)
+GET http://localhost:3000/api/pedidos/retirada
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwidXNlcm5hbWUiOiJndWl6b19jb3ppbmhhIiwidGlwbyI6ImZ1bmNpb25hcmlvIiwiY2FyZ28iOiJjb3ppbmhhIiwiaWF0IjoxNzg4OTY2NzYzLCJleHAiOjE3ODg5OTU1NjN9.dEaoDHqAXLl0J_nKjUw0ZTwsKQYxSlBH15JvvL-8k-E

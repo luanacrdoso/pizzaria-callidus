@@ -27,6 +27,7 @@ export function CheckoutPage() {
 
   const [nome, setNome] = useState('');
   const [telefone, setTelefone] = useState('');
+  const [tipoPedido, setTipoPedido] = useState<'entrega' | 'retirada' | 'presencial'>('entrega');
   const [endereco, setEndereco] = useState('');
   const [formaPagamento, setFormaPagamento] = useState('');
   const [codigoCupom, setCodigoCupom] = useState('');
@@ -45,7 +46,7 @@ export function CheckoutPage() {
   }, [perfil]);
 
   const subtotal = itens.reduce((s, i) => s + i.precoUnitario * i.quantidade, 0);
-  const taxaEntrega = Number(config?.taxa_entrega ?? 0);
+  const taxaEntrega = tipoPedido === 'entrega' ? Number(config?.taxa_entrega ?? 0) : 0;
   const total = Math.max(0, subtotal + taxaEntrega - desconto);
 
   const handleAplicarCupom = async () => {
@@ -62,7 +63,7 @@ export function CheckoutPage() {
   const handleFinalizar = async () => {
     const token = obterTokenCliente();
     const payload = {
-      tipo: 'entrega',
+      tipo: tipoPedido,
       cliente_id: logado && perfil ? perfil.id : null,
       cliente_nome: nome, cliente_telefone: telefone, endereco_entrega: endereco,
       itens: itens.map((i) => ({ pizzaId: i.pizzaId, nome: i.nome, tamanho: i.tamanho, extras: i.extras, observacoes: i.observacoes, quantidade: i.quantidade, precoUnitario: i.precoUnitario })),
@@ -85,7 +86,15 @@ export function CheckoutPage() {
       <h1>Checkout</h1>
       <input placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
       <input placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
-      <input placeholder="Endereço de entrega" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
+      <select value={tipoPedido} onChange={(e) => setTipoPedido(e.target.value as any)}>
+        <option value="entrega">Entrega</option>
+        <option value="retirada">Retirada no balcão</option>
+        <option value="presencial">Vou comer no local</option>
+      </select>
+
+      {tipoPedido === 'entrega' && (
+        <input placeholder="Endereço de entrega" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
+    ) }
       <select value={formaPagamento} onChange={(e) => setFormaPagamento(e.target.value)}>
         <option value="">Forma de pagamento</option>
         {(config?.formas_pagamento_aceitas ?? []).map((f: string) => <option key={f} value={f}>{f}</option>)}

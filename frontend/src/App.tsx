@@ -28,6 +28,15 @@ import { AdminPedidoDetalhePage } from './pages/AdminPedidoDetalhePage';
 import { FuncionarioLoginPage } from './pages/FuncionarioLoginPage';
 import { EquipeHomePage } from './pages/EquipeHomePage';
 import { FuncionarioCadastroPage } from './pages/FuncionarioCadastroPage';
+import { BalcaoLayout } from './layouts/BalcaoLayout';
+import { CozinhaLayout } from './layouts/CozinhaLayout';
+import { BalcaoMesasPage } from './pages/BalcaoMesasPage';
+import { BalcaoReservasPage } from './pages/BalcaoReservasPage';
+import { BalcaoPedidoPresencialPage } from './pages/BalcaoPedidoPresencialPage';
+import { BalcaoRetiradaPage } from './pages/BalcaoRetiradaPage';
+import { CozinhaFilaPage } from './pages/CozinhaFilaPage';
+import { RequireFuncionario } from './components/RequireFuncionario';
+
 
 
 function App() {
@@ -52,6 +61,16 @@ function App() {
  {/* Painel Admin */}
  <Route path="/admin/login" element={<LoginPage />} />
  <Route path="/equipe/login" element={<FuncionarioLoginPage />} />
+ <Route path="/equipe/balcao" element={<RequireFuncionario cargos={['balcao']}><BalcaoLayout /></RequireFuncionario>}>
+  <Route index element={<Navigate to="mesas" replace />} />
+  <Route path="mesas" element={<BalcaoMesasPage />} />
+  <Route path="reservas" element={<BalcaoReservasPage />} />
+  <Route path="pedido-presencial" element={<BalcaoPedidoPresencialPage />} />
+  <Route path="retirada" element={<BalcaoRetiradaPage />} />
+</Route>
+<Route path="/equipe/cozinha" element={<RequireFuncionario cargos={['cozinha']}><CozinhaLayout /></RequireFuncionario>}>
+  <Route index element={<CozinhaFilaPage />} />
+</Route>
 <Route path="/equipe" element={<EquipeHomePage />} />
 <Route path="/equipe/cadastro" element={<FuncionarioCadastroPage />} />
  <Route path="/admin" element={<RequireAuth><AdminLayout /></RequireAuth>}>
