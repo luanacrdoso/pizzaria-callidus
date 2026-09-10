@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { loginFuncionario, salvarSessaoFuncionario } from '../api/funcionarioAuth';
+import { loginFuncionario, salvarSessaoFuncionario, salvarUsernameFuncionario } from '../api/funcionarioAuth';
 
 export function FuncionarioLoginPage() {
   const [username, setUsername] = useState('');
@@ -13,6 +13,7 @@ export function FuncionarioLoginPage() {
     try {
       const { token, cargo, nome } = await loginFuncionario(username, password);
       salvarSessaoFuncionario(token, cargo, nome);
+      salvarUsernameFuncionario(username);
       window.location.href = '/equipe';
     } catch (err: any) {
       setErro(err.message);

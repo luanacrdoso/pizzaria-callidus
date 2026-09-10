@@ -7,7 +7,9 @@ export function EquipeHomePage() {
  
   if (cargo === 'balcao') return <Navigate to="/equipe/balcao" replace />;
   if (cargo === 'cozinha') return <Navigate to="/equipe/cozinha" replace />;
- 
+  if (cargo === 'garcom') return <Navigate to="/equipe/garcom" replace />;
+  if (cargo === 'motoboy') return <Navigate to="/equipe/motoboy" replace />;
+  
   return (
     <div style={{ padding: 24 }}>
       <h1>Área da Equipe</h1>
