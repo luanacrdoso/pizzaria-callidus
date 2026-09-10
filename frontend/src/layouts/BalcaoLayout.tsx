@@ -15,6 +15,7 @@ export function BalcaoLayout() {
         <NavLink to="/equipe/balcao/reservas" style={linkStyle}>Reservas</NavLink>
         <NavLink to="/equipe/balcao/pedido-presencial" style={linkStyle}>Anotar Pedido</NavLink>
         <NavLink to="/equipe/balcao/retirada" style={linkStyle}>Retirada</NavLink>
+        <NavLink to="/equipe/perfil" style={linkStyle}>Meus Dados</NavLink>
         <button onClick={() => { logoutFuncionario(); window.location.href = "/equipe/login"; }} style={{ marginTop: "auto" }}>Sair</button>
       </nav>
       <div style={{ flex: 1, overflowY: "auto" }}>

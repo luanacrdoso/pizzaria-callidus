@@ -10,7 +10,7 @@ const CARGOS = [
 ];
 
 export function FuncionarioCadastroPage() {
-  const [form, setForm] = useState({ username: '', senha: '', nome: '', telefone: '', cargo: 'balcao' });
+  const [form, setForm] = useState({ username: '', senha: '', nome: '', telefone: '', email: '', cargo: 'balcao' });
   const [erro, setErro] = useState('');
   const [sucesso, setSucesso] = useState(false);
 
@@ -47,6 +47,7 @@ export function FuncionarioCadastroPage() {
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <input placeholder="Nome completo" {...campo('nome')} required />
         <input placeholder="Telefone" {...campo('telefone')} />
+        <input placeholder="Email" {...campo('email')} />
         <select value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })}>
           {CARGOS.map((c) => <option key={c.valor} value={c.valor}>{c.rotulo}</option>)}
         </select>

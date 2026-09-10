@@ -6,6 +6,7 @@ export function CozinhaLayout() {
     <div>
       <header style={{ display: "flex", justifyContent: "space-between", padding: 16, borderBottom: "1px solid #ddd" }}>
         <h2 style={{ margin: 0 }}>Cozinha</h2>
+        <a href="/equipe/perfil">Meus Dados</a>
         <button onClick={() => { logoutFuncionario(); window.location.href = "/equipe/login"; }}>Sair</button>
       </header>
       <Outlet />

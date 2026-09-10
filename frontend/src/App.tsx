@@ -36,7 +36,7 @@ import { BalcaoPedidoPresencialPage } from './pages/BalcaoPedidoPresencialPage';
 import { BalcaoRetiradaPage } from './pages/BalcaoRetiradaPage';
 import { CozinhaFilaPage } from './pages/CozinhaFilaPage';
 import { RequireFuncionario } from './components/RequireFuncionario';
-
+import { FuncionarioPerfilPage } from './pages/FuncionarioPerfilPage';
 
 
 function App() {
@@ -73,6 +73,7 @@ function App() {
 </Route>
 <Route path="/equipe" element={<EquipeHomePage />} />
 <Route path="/equipe/cadastro" element={<FuncionarioCadastroPage />} />
+<Route path="/equipe/perfil" element={<RequireFuncionario><FuncionarioPerfilPage /></RequireFuncionario>} />
  <Route path="/admin" element={<RequireAuth><AdminLayout /></RequireAuth>}>
  <Route index element={<Navigate to="cardapio" replace />} />
  <Route path="cardapio" element={<AdminCardapioPage />} />
