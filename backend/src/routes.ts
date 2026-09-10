@@ -562,6 +562,8 @@ router.put('/me/senha', verificarAutenticado, async (req, res) => {
   }
 });
 
+
+
 // ========== RECUPERAÇÃO DE SENHA POR E-MAIL ==========
 
 // POST /api/auth/esqueci-senha — gera e envia o código
@@ -914,30 +916,32 @@ router.post('/pedidos', async (req, res) => {
   const {
     tipo, cliente_id, cliente_nome, cliente_telefone, mesa_id,
     itens, subtotal, taxa_entrega, total, endereco_entrega,
-    cupom_codigo, valor_desconto, forma_pagamento
+    cupom_codigo, valor_desconto, forma_pagamento,
+    comanda_nome, garcom_username, gorjeta_valor
   } = req.body;
-
+ 
   if (!tipo || !itens || itens.length === 0) {
     return res.status(400).json({ mensagem: 'tipo e itens são obrigatórios.' });
   }
-
+ 
   const statusInicial = forma_pagamento === 'Pix' ? 'aguardando_pagamento' : 'recebido';
-
+ 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-
+ 
     const pedidoResult = await client.query(
       `INSERT INTO pedidos
         (tipo, cliente_id, cliente_nome, cliente_telefone, mesa_id, subtotal, taxa_entrega, total,
-         endereco_entrega, cupom_codigo, valor_desconto, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         endereco_entrega, cupom_codigo, valor_desconto, status, comanda_nome, garcom_username, gorjeta_valor)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        RETURNING *`,
       [tipo, cliente_id || null, cliente_nome, cliente_telefone, mesa_id || null, subtotal,
-       taxa_entrega || 0, total, endereco_entrega, cupom_codigo || null, valor_desconto || 0, statusInicial]
+       taxa_entrega || 0, total, endereco_entrega, cupom_codigo || null, valor_desconto || 0, statusInicial,
+       comanda_nome || null, garcom_username || null, gorjeta_valor || 0]
     );
     const pedido = pedidoResult.rows[0];
-
+ 
     for (const item of itens) {
       await client.query(
         `INSERT INTO itens_pedido (pedido_id, pizza_id, nome, tamanho, extras, observacoes, quantidade, preco_unitario)
@@ -946,17 +950,17 @@ router.post('/pedidos', async (req, res) => {
          item.observacoes || null, item.quantidade || 1, item.precoUnitario]
       );
     }
-
+ 
     await client.query(
       `INSERT INTO pedido_pagamentos (pedido_id, nome_pagador, valor_pago, forma_pagamento)
        VALUES ($1,$2,$3,$4)`,
       [pedido.id, cliente_nome, total, forma_pagamento]
     );
-
+ 
     if (cupom_codigo) {
       await client.query('UPDATE cupons SET usos_atuais = usos_atuais + 1 WHERE codigo = $1', [cupom_codigo.toUpperCase()]);
     }
-
+ 
     await client.query('COMMIT');
     res.status(201).json(pedido);
   } catch (erro) {
@@ -967,6 +971,7 @@ router.post('/pedidos', async (req, res) => {
     client.release();
   }
 });
+
 
 // IMPORTANTE: /pedidos/meus e as rotas fixas precisam vir ANTES de /pedidos/:id,
 // senão o Express interpreta "meus" como se fosse um :id
@@ -1036,6 +1041,42 @@ router.get('/pedidos/cozinha', verificarCargo('cozinha', 'balcao'), async (_req,
   }
 });
 
+// Rotas fixas do Motoboy precisam vir antes de /pedidos/:id
+// GET /api/pedidos/motoboy — pedidos tipo entrega com status pronto e motoboy_chamado = true
+
+router.get('/pedidos/entregas-disponiveis', verificarCargo('motoboy'), async (_req, res) => {
+  try {
+    const resultado = await pool.query(
+      `SELECT p.*, (SELECT json_agg(i) FROM itens_pedido i WHERE i.pedido_id = p.id) AS itens
+       FROM pedidos p
+       WHERE p.tipo = 'entrega' AND p.motoboy_username IS NULL AND p.motoboy_chamado = true
+         AND p.status NOT IN ('finalizado','cancelado')
+       ORDER BY p.criado_em`
+    );
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar entregas disponíveis.' });
+  }
+});
+
+router.get('/pedidos/minhas-entregas', verificarCargo('motoboy'), async (req, res) => {
+  const usuario = (req as any).usuario;
+  try {
+    const resultado = await pool.query(
+      `SELECT p.*, (SELECT json_agg(i) FROM itens_pedido i WHERE i.pedido_id = p.id) AS itens
+       FROM pedidos p WHERE p.motoboy_username = $1
+         AND p.status NOT IN ('finalizado','cancelado')
+       ORDER BY p.criado_em`,
+      [usuario.username]
+    );
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar minhas entregas.' });
+  }
+});
+
 router.get('/pedidos/:id', async (req, res) => {
   try {
     const pedido = await pool.query('SELECT * FROM pedidos WHERE id = $1', [req.params.id]);
@@ -1083,6 +1124,38 @@ router.put('/pedidos/:id/recusar-pagamento', verificarAdmin, async (req, res) =>
     res.status(500).json({ mensagem: 'Erro ao recusar pagamento.' });
   }
 });
+// GET /api/comandas?mesa_id=X — comandas abertas de uma mesa
+router.get('/comandas', verificarEquipe, async (req, res) => {
+  const { mesa_id } = req.query;
+  try {
+    const resultado = await pool.query(
+      `SELECT id, comanda_nome, total, status, criado_em FROM pedidos
+       WHERE mesa_id = $1 AND tipo = 'presencial' AND status NOT IN ('finalizado','cancelado')
+       ORDER BY criado_em`,
+      [mesa_id]
+    );
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar comandas.' });
+  }
+});
+
+router.post('/pedidos/:id/pagamentos', verificarEquipe, async (req, res) => {
+  const { nome_pagador, valor_pago, forma_pagamento } = req.body;
+  try {
+    const resultado = await pool.query(
+      'INSERT INTO pedido_pagamentos (pedido_id, nome_pagador, valor_pago, forma_pagamento) VALUES ($1,$2,$3,$4) RETURNING *',
+      [req.params.id, nome_pagador, valor_pago, forma_pagamento]
+    );
+    res.status(201).json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao registrar pagamento.' });
+  }
+});
+
+
 
 // ========== EDIÇÃO DE ITENS DE UM PEDIDO (equipe: admin ou funcionário) ==========
 
@@ -1165,5 +1238,134 @@ router.put('/pedidos/:id/status', verificarAutenticado, async (req, res) => {
   } catch (erro) {
     console.error(erro);
     res.status(500).json({ mensagem: 'Erro ao atualizar status.' });
+  }
+});
+
+
+//adicionando confirmações de mesa servida pelo garçom
+
+router.put('/pedidos/:id/servido', verificarCargo('garcom'), async (req, res) => {
+  try {
+    const resultado = await pool.query('UPDATE pedidos SET servido = true WHERE id = $1 RETURNING *', [req.params.id]);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Pedido não encontrado.' });
+    }
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao marcar como servido.' });
+  }
+});
+//chamar entregador e fila do motoboy
+
+router.put('/pedidos/:id/chamar-motoboy', verificarCargo('cozinha', 'balcao'), async (req, res) => {
+  try {
+    const resultado = await pool.query('UPDATE pedidos SET motoboy_chamado = true WHERE id = $1 RETURNING *', [req.params.id]);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Pedido não encontrado.' });
+    }
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao chamar entregador.' });
+  }
+});
+
+ 
+router.put('/pedidos/:id/assumir-entrega', verificarCargo('motoboy'), async (req, res) => {
+  const usuario = (req as any).usuario;
+  try {
+    const resultado = await pool.query(
+      'UPDATE pedidos SET motoboy_username = $1 WHERE id = $2 AND motoboy_username IS NULL RETURNING *',
+      [usuario.username, req.params.id]
+    );
+    if (resultado.rows.length === 0) {
+      return res.status(409).json({ mensagem: 'Essa entrega já foi assumida por outra pessoa.' });
+    }
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao assumir entrega.' });
+  }
+});
+
+// ========== DASHBOARDS DE GANHOS ==========
+
+function calcularDataInicial(periodo: any): Date {
+  const agora = new Date();
+  if (periodo === '7dias') { agora.setDate(agora.getDate() - 7); return agora; }
+  if (periodo === 'mes') { agora.setMonth(agora.getMonth() - 1); return agora; }
+  agora.setHours(0, 0, 0, 0);
+  return agora;
+}
+
+// Dashboard do Garçom — gorjeta dividida por dia trabalhado
+router.get('/dashboard/garcom', verificarCargo('garcom'), async (req, res) => {
+  const usuario = (req as any).usuario;
+  const { periodo } = req.query;
+  const desde = calcularDataInicial(periodo);
+
+  try {
+    const resultado = await pool.query(
+      `SELECT criado_em::date AS dia, garcom_username, gorjeta_valor
+       FROM pedidos
+       WHERE status = 'finalizado'
+         AND garcom_username IS NOT NULL
+         AND criado_em >= $1`,
+      [desde]
+    );
+
+    const porDia: Record<string, { totalGorjeta: number; garcons: Set<string> }> = {};
+
+    for (const linha of resultado.rows) {
+      const dia = linha.dia.toISOString().slice(0, 10);
+      if (!porDia[dia]) porDia[dia] = { totalGorjeta: 0, garcons: new Set() };
+      porDia[dia].totalGorjeta += Number(linha.gorjeta_valor);
+      porDia[dia].garcons.add(linha.garcom_username);
+    }
+
+    let meuGanho = 0;
+
+    for (const dia in porDia) {
+      const { totalGorjeta, garcons } = porDia[dia];
+      if (garcons.has(usuario.username) && garcons.size > 0) {
+        meuGanho += totalGorjeta / garcons.size;
+      }
+    }
+
+    res.json({
+      ganho_total: Number(meuGanho.toFixed(2)),
+      periodo: periodo || 'hoje'
+    });
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao calcular ganhos.' });
+  }
+});
+
+// Dashboard do Motoboy — taxa de entrega x quantidade
+router.get('/dashboard/motoboy', verificarCargo('motoboy'), async (req, res) => {
+  const usuario = (req as any).usuario;
+  const { periodo } = req.query;
+  const desde = calcularDataInicial(periodo);
+
+  try {
+    const resultado = await pool.query(
+      `SELECT COUNT(*) AS qtd, COALESCE(SUM(taxa_entrega), 0) AS total
+       FROM pedidos
+       WHERE motoboy_username = $1
+         AND status = 'finalizado'
+         AND criado_em >= $2`,
+      [usuario.username, desde]
+    );
+
+    res.json({
+      quantidade_entregas: Number(resultado.rows[0].qtd),
+      ganho_total: Number(resultado.rows[0].total),
+      periodo: periodo || 'hoje'
+    });
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao calcular ganhos.' });
   }
 });
