@@ -55,3 +55,9 @@ export async function cadastrarFuncionario(dados: {
   }
   return resposta.json();
 }
+export function salvarUsernameFuncionario(username: string) {
+  localStorage.setItem('equipe_username', username);
+}
+export function obterUsernameFuncionario(): string | null {
+  return localStorage.getItem('equipe_username');
+}
