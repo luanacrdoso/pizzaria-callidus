@@ -23,6 +23,8 @@ import { ClientePerfilPage } from './pages/ClientePerfilPage';
 import { DetalheProdutoPage } from './pages/DetalheProdutoPage';
 import { AdminPagamentosPendentesPage } from './pages/AdminPagamentosPendentesPage';
 import { AdminPedidoDetalhePage } from './pages/AdminPedidoDetalhePage';
+import { AdminPedidosPage } from './pages/AdminPedidosPage';
+import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { EquipeHomePage } from './pages/EquipeHomePage';
 import { FuncionarioCadastroPage } from './pages/FuncionarioCadastroPage';
 import { BalcaoLayout } from './layouts/BalcaoLayout';
@@ -36,16 +38,15 @@ import { RequireFuncionario } from './components/RequireFuncionario';
 import { FuncionarioPerfilPage } from './pages/FuncionarioPerfilPage';
 import { GarcomLayout } from './layouts/GarcomLayout';
 import { MotoboyLayout } from './layouts/MotoboyLayout';
+import { GarcomComandasAtivasPage } from './pages/GarcomComandasAtivasPage';
 import { GarcomComandasPage } from './pages/GarcomComandasPage';
 import { GarcomServirPage } from './pages/GarcomServirPage';
 import { GarcomDashboardPage } from './pages/GarcomDashboardPage';
 import { MotoboyDisponiveisPage } from './pages/MotoboyDisponiveisPage';
 import { MotoboyMinhasEntregasPage } from './pages/MotoboyMinhasEntregasPage';
 import { MotoboyDashboardPage } from './pages/MotoboyDashboardPage';
-import { LoginPage } from './pages/LoginPage';
-import { AdminPedidosPage } from './pages/AdminPedidosPage';
-import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { PedidosAtivosPage } from './pages/PedidosAtivosPage';
+import { LoginPage } from './pages/LoginPage';
 
 function App() {
   return (
@@ -67,54 +68,13 @@ function App() {
         <Route path="esqueci-senha" element={<EsqueciSenhaPage />} />
       </Route>
 
-      {/* Painel Admin */}
+      {/* Login do Admin e da Equipe (fora do layout do Cliente) */}
       <Route path="/admin/login" element={<LoginPage default="admin" />} />
-
       <Route path="/equipe/login" element={<LoginPage default="equipe" />} />
-
-      <Route
-        path="/equipe/balcao"
-        element={
-          <RequireFuncionario cargos={['balcao']}>
-            <BalcaoLayout />
-          </RequireFuncionario>
-        }
-      >
-        <Route index element={<Navigate to="mesas" replace />} />
-        <Route path="mesas" element={<BalcaoMesasPage />} />
-        <Route path="reservas" element={<BalcaoReservasPage />} />
-        <Route path="pedido-presencial" element={<BalcaoPedidoPresencialPage />} />
-        <Route path="retirada" element={<BalcaoRetiradaPage />} />
-        <Route path="ativos" element={<PedidosAtivosPage destaque="retirada" />} />
-      </Route>
-
-      <Route
-        path="/equipe/cozinha"
-        element={
-          <RequireFuncionario cargos={['cozinha']}>
-            <CozinhaLayout />
-          </RequireFuncionario>
-        }
-      >
-        <Route index element={<CozinhaFilaPage />} />
-      </Route>
-
+      <Route path="/equipe/cadastro" element={<FuncionarioCadastroPage />} />
       <Route path="/equipe" element={<EquipeHomePage />} />
 
-      <Route
-        path="/equipe/cadastro"
-        element={<FuncionarioCadastroPage />}
-      />
-
-      <Route
-        path="/equipe/perfil"
-        element={
-          <RequireFuncionario>
-            <FuncionarioPerfilPage />
-          </RequireFuncionario>
-        }
-      />
-
+      {/* Painel Admin */}
       <Route
         path="/admin"
         element={
@@ -130,15 +90,47 @@ function App() {
         <Route path="salao" element={<AdminSalaoPage />} />
         <Route path="funcionarios" element={<AdminFuncionariosPage />} />
         <Route path="pedidos/:id" element={<AdminPedidoDetalhePage />} />
+        <Route path="pedidos" element={<AdminPedidosPage />} />
+        <Route path="dashboard" element={<AdminDashboardPage />} />
         <Route path="perfil" element={<AdminPerfilPage />} />
         <Route path="reservas-mesa" element={<AdminReservasMesaPage />} />
         <Route path="cupons" element={<AdminCuponsPage />} />
         <Route path="pagamentos-pendentes" element={<AdminPagamentosPendentesPage />} />
         <Route path="pedidos-ativos" element={<PedidosAtivosPage />} />
-        <Route path="pedidos" element={<AdminPedidosPage />} />
-        <Route path="dashboard" element={<AdminDashboardPage />} />
       </Route>
 
+      {/* Balcão */}
+      <Route
+        path="/equipe/balcao"
+        element={
+          <RequireFuncionario cargos={['balcao']}>
+            <BalcaoLayout />
+          </RequireFuncionario>
+        }
+      >
+        <Route index element={<Navigate to="mesas" replace />} />
+        <Route path="mesas" element={<BalcaoMesasPage />} />
+        <Route path="reservas" element={<BalcaoReservasPage />} />
+        <Route path="pedido-presencial" element={<BalcaoPedidoPresencialPage />} />
+        <Route path="retirada" element={<BalcaoRetiradaPage />} />
+        <Route path="ativos" element={<PedidosAtivosPage destaque="retirada" />} />
+        <Route path="perfil" element={<FuncionarioPerfilPage />} />
+      </Route>
+
+      {/* Cozinha */}
+      <Route
+        path="/equipe/cozinha"
+        element={
+          <RequireFuncionario cargos={['cozinha']}>
+            <CozinhaLayout />
+          </RequireFuncionario>
+        }
+      >
+        <Route index element={<CozinhaFilaPage />} />
+        <Route path="perfil" element={<FuncionarioPerfilPage />} />
+      </Route>
+
+      {/* Garçom */}
       <Route
         path="/equipe/garcom"
         element={
@@ -148,12 +140,14 @@ function App() {
         }
       >
         <Route index element={<Navigate to="comandas" replace />} />
-        <Route path="comandas" element={<GarcomComandasPage />} />
+        <Route path="comandas" element={<GarcomComandasAtivasPage />} />
+        <Route path="montar" element={<GarcomComandasPage />} />
         <Route path="servir" element={<GarcomServirPage />} />
-        <Route path="ativos" element={<PedidosAtivosPage destaque="presencial" permitirAtender />} />
         <Route path="dashboard" element={<GarcomDashboardPage />} />
+        <Route path="perfil" element={<FuncionarioPerfilPage />} />
       </Route>
 
+      {/* Motoboy */}
       <Route
         path="/equipe/motoboy"
         element={
@@ -164,11 +158,9 @@ function App() {
       >
         <Route index element={<Navigate to="disponiveis" replace />} />
         <Route path="disponiveis" element={<MotoboyDisponiveisPage />} />
-        <Route
-          path="minhas-entregas"
-          element={<MotoboyMinhasEntregasPage />}
-        />
+        <Route path="minhas-entregas" element={<MotoboyMinhasEntregasPage />} />
         <Route path="dashboard" element={<MotoboyDashboardPage />} />
+        <Route path="perfil" element={<FuncionarioPerfilPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

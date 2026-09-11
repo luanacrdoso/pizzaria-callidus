@@ -13,7 +13,6 @@ function tabelaDoUsuario(tipo: string) {
 
 // ========== AUTENTICAÇÃO ==========
 
-// POST /api/auth/login — login do Admin (agora validado contra o banco)
 router.post('/auth/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -33,7 +32,6 @@ router.post('/auth/login', async (req, res) => {
   }
 });
 
-// POST /api/auth/funcionario/login — login de Balcão, Cozinha, Garçom, Motoboy
 router.post('/auth/funcionario/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -60,7 +58,6 @@ router.post('/auth/funcionario/login', async (req, res) => {
 
 // ========== PIZZAS (CARDÁPIO) ==========
 
-// GET /api/pizzas — lista todo o cardápio
 router.get('/pizzas', async (req, res) => {
   const { visivel } = req.query;
   try {
@@ -75,7 +72,6 @@ router.get('/pizzas', async (req, res) => {
   }
 });
 
-// GET /api/pizzas/:id — busca um item específico
 router.get('/pizzas/:id', async (req, res) => {
   try {
     const resultado = await pool.query('SELECT * FROM pizzas WHERE id = $1', [req.params.id]);
@@ -89,7 +85,6 @@ router.get('/pizzas/:id', async (req, res) => {
   }
 });
 
-// POST /api/pizzas — cria um novo item do cardápio
 router.post('/pizzas', async (req, res) => {
   const {
     nome, descricao, categoria, imagem_url,
@@ -118,7 +113,6 @@ router.post('/pizzas', async (req, res) => {
   }
 });
 
-// PUT /api/pizzas/:id — edita um item existente
 router.put('/pizzas/:id', async (req, res) => {
   const {
     nome, descricao, categoria, imagem_url,
@@ -148,7 +142,6 @@ router.put('/pizzas/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/pizzas/:id
 router.delete('/pizzas/:id', async (req, res) => {
   try {
     const resultado = await pool.query('DELETE FROM pizzas WHERE id = $1 RETURNING id', [req.params.id]);
@@ -164,7 +157,6 @@ router.delete('/pizzas/:id', async (req, res) => {
 
 // ========== ADICIONAIS ==========
 
-// GET /api/adicionais — lista os adicionais
 router.get('/adicionais', async (_req, res) => {
   try {
     const resultado = await pool.query('SELECT * FROM adicionais ORDER BY id');
@@ -175,7 +167,6 @@ router.get('/adicionais', async (_req, res) => {
   }
 });
 
-// POST /api/adicionais — cria um adicional
 router.post('/adicionais', async (req, res) => {
   const { nome, preco } = req.body;
 
@@ -195,7 +186,6 @@ router.post('/adicionais', async (req, res) => {
   }
 });
 
-// DELETE /api/adicionais/:id
 router.delete('/adicionais/:id', async (req, res) => {
   try {
     const resultado = await pool.query('DELETE FROM adicionais WHERE id = $1 RETURNING id', [req.params.id]);
@@ -209,9 +199,68 @@ router.delete('/adicionais/:id', async (req, res) => {
   }
 });
 
+// ========== CATEGORIAS DE PRODUTO ==========
+
+router.get('/categorias', async (_req, res) => {
+  try {
+    const resultado = await pool.query('SELECT * FROM categorias ORDER BY nome');
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao buscar categorias.' });
+  }
+});
+
+router.post('/categorias', verificarAdmin, async (req, res) => {
+  const { nome } = req.body;
+  if (!nome) return res.status(400).json({ mensagem: 'nome é obrigatório.' });
+  try {
+    const resultado = await pool.query('INSERT INTO categorias (nome) VALUES ($1) RETURNING *', [nome]);
+    res.status(201).json(resultado.rows[0]);
+  } catch (erro: any) {
+    if (erro.code === '23505') {
+      return res.status(409).json({ mensagem: 'Já existe uma categoria com esse nome.' });
+    }
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao criar categoria.' });
+  }
+});
+
+router.put('/categorias/:id', verificarAdmin, async (req, res) => {
+  const { nome, ativa } = req.body;
+  try {
+    const resultado = await pool.query(
+      'UPDATE categorias SET nome = $1, ativa = $2 WHERE id = $3 RETURNING *',
+      [nome, ativa, req.params.id]
+    );
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Categoria não encontrada.' });
+    }
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao atualizar categoria.' });
+  }
+});
+
+router.delete('/categorias/:id', verificarAdmin, async (req, res) => {
+  try {
+    const resultado = await pool.query('DELETE FROM categorias WHERE id = $1 RETURNING id', [req.params.id]);
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Categoria não encontrada.' });
+    }
+    res.status(204).send();
+  } catch (erro: any) {
+    if (erro.code === '23503') {
+      return res.status(409).json({ mensagem: 'Existem produtos usando essa categoria — mude-os antes de excluir.' });
+    }
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao excluir categoria.' });
+  }
+});
+
 // ========== CONFIGURAÇÃO DA PIZZARIA ==========
 
-// GET /api/config — busca a configuração da pizzaria
 router.get('/config', async (_req, res) => {
   try {
     const resultado = await pool.query('SELECT * FROM restaurante_config WHERE id = 1');
@@ -222,7 +271,6 @@ router.get('/config', async (_req, res) => {
   }
 });
 
-// PUT /api/config — atualiza a configuração da pizzaria
 router.put('/config', async (req, res) => {
   const {
     nome, descricao, logo_url, capa_url,
@@ -260,7 +308,6 @@ router.put('/config', async (req, res) => {
 
 // ========== MESAS ==========
 
-// GET /api/mesas — lista todas as mesas
 router.get('/mesas', async (_req, res) => {
   try {
     const resultado = await pool.query('SELECT * FROM mesas ORDER BY numero');
@@ -271,7 +318,6 @@ router.get('/mesas', async (_req, res) => {
   }
 });
 
-// POST /api/mesas — cria uma mesa nova
 router.post('/mesas', verificarEquipe, async (req, res) => {
   const { numero, capacidade, nome } = req.body;
 
@@ -291,7 +337,6 @@ router.post('/mesas', verificarEquipe, async (req, res) => {
   }
 });
 
-// PUT /api/mesas/:id — edita nome, capacidade ou status de uma mesa
 router.put('/mesas/:id', verificarEquipe, async (req, res) => {
   const { capacidade, status, nome } = req.body;
 
@@ -310,7 +355,6 @@ router.put('/mesas/:id', verificarEquipe, async (req, res) => {
   }
 });
 
-// DELETE /api/mesas/:id
 router.delete('/mesas/:id', verificarEquipe, async (req, res) => {
   try {
     const resultado = await pool.query('DELETE FROM mesas WHERE id = $1 RETURNING id', [req.params.id]);
@@ -326,7 +370,6 @@ router.delete('/mesas/:id', verificarEquipe, async (req, res) => {
 
 // ========== SALÃO DE EVENTOS ==========
 
-// GET /api/salao — busca a configuração do salão de eventos
 router.get('/salao', async (_req, res) => {
   try {
     const resultado = await pool.query('SELECT * FROM salao_eventos WHERE id = 1');
@@ -337,7 +380,6 @@ router.get('/salao', async (_req, res) => {
   }
 });
 
-// PUT /api/salao — atualiza a configuração do salão
 router.put('/salao', async (req, res) => {
   const { nome, descricao, capacidade_pessoas, imagem_url, ativo } = req.body;
 
@@ -356,7 +398,6 @@ router.put('/salao', async (req, res) => {
   }
 });
 
-// GET /api/reservas-salao — lista reservas (com filtro opcional por status)
 router.get('/reservas-salao', async (req, res) => {
   const { status } = req.query;
 
@@ -373,7 +414,6 @@ router.get('/reservas-salao', async (req, res) => {
   }
 });
 
-// POST /api/reservas-salao — o Admin cadastra uma reserva recebida por WhatsApp
 router.post('/reservas-salao', async (req, res) => {
   const {
     nome_cliente, telefone_cliente, data_evento, horario_evento,
@@ -401,7 +441,6 @@ router.post('/reservas-salao', async (req, res) => {
   }
 });
 
-// PUT /api/reservas-salao/:id — atualiza o status (concluir ou cancelar)
 router.put('/reservas-salao/:id', async (req, res) => {
   const { status } = req.body;
 
@@ -426,7 +465,6 @@ router.put('/reservas-salao/:id', async (req, res) => {
 
 // ========== FUNCIONÁRIOS ==========
 
-// POST /api/funcionarios — cadastro (público, fica pendente até o Admin aprovar)
 router.post('/funcionarios', async (req, res) => {
   const { username, senha, nome, telefone, email, cargo } = req.body;
 
@@ -451,7 +489,6 @@ router.post('/funcionarios', async (req, res) => {
   }
 });
 
-// GET /api/funcionarios — lista todos (protegido, só Admin)
 router.get('/funcionarios', verificarAdmin, async (_req, res) => {
   try {
     const resultado = await pool.query(
@@ -464,7 +501,6 @@ router.get('/funcionarios', verificarAdmin, async (_req, res) => {
   }
 });
 
-// PUT /api/funcionarios/:id/aprovar — aprova um funcionário pendente (protegido)
 router.put('/funcionarios/:id/aprovar', verificarAdmin, async (req, res) => {
   try {
     const resultado = await pool.query(
@@ -481,7 +517,6 @@ router.put('/funcionarios/:id/aprovar', verificarAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/funcionarios/:id — remove (reprovar pendente ou desligar ativo) (protegido)
 router.delete('/funcionarios/:id', verificarAdmin, async (req, res) => {
   try {
     const resultado = await pool.query('DELETE FROM funcionarios WHERE id = $1 RETURNING id', [req.params.id]);
@@ -497,7 +532,6 @@ router.delete('/funcionarios/:id', verificarAdmin, async (req, res) => {
 
 // ========== PERFIL DO USUÁRIO LOGADO ==========
 
-// GET /api/me — dados do usuário logado (admin, funcionário ou cliente)
 router.get('/me', verificarAutenticado, async (req, res) => {
   const usuario = (req as any).usuario;
   const tabela = tabelaDoUsuario(usuario.tipo);
@@ -511,7 +545,6 @@ router.get('/me', verificarAutenticado, async (req, res) => {
   }
 });
 
-// PUT /api/me — edita username/e-mail (exige a senha atual)
 router.put('/me', verificarAutenticado, async (req, res) => {
   const usuario = (req as any).usuario;
   const { username, email, senha_atual } = req.body;
@@ -537,7 +570,6 @@ router.put('/me', verificarAutenticado, async (req, res) => {
   }
 });
 
-// PUT /api/me/senha — troca de senha (exige a senha atual)
 router.put('/me/senha', verificarAutenticado, async (req, res) => {
   const usuario = (req as any).usuario;
   const { senha_atual, nova_senha } = req.body;
@@ -562,11 +594,8 @@ router.put('/me/senha', verificarAutenticado, async (req, res) => {
   }
 });
 
-
-
 // ========== RECUPERAÇÃO DE SENHA POR E-MAIL ==========
 
-// POST /api/auth/esqueci-senha — gera e envia o código
 router.post('/auth/esqueci-senha', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ mensagem: 'email é obrigatório.' });
@@ -594,7 +623,6 @@ router.post('/auth/esqueci-senha', async (req, res) => {
   }
 });
 
-// POST /api/auth/redefinir-senha — confirma o código e define a nova senha
 router.post('/auth/redefinir-senha', async (req, res) => {
   const { email, codigo, nova_senha } = req.body;
 
@@ -633,7 +661,6 @@ router.post('/auth/redefinir-senha', async (req, res) => {
 
 // ========== RESERVAS DE MESA ==========
 
-// GET /api/reservas-mesa — lista reservas (com filtro opcional por status)
 router.get('/reservas-mesa', async (req, res) => {
   const { status } = req.query;
 
@@ -650,7 +677,6 @@ router.get('/reservas-mesa', async (req, res) => {
   }
 });
 
-// POST /api/reservas-mesa — o Admin cadastra uma reserva recebida por WhatsApp
 router.post('/reservas-mesa', async (req, res) => {
   const { nome_cliente, telefone_cliente, data_reserva, horario_reserva, quantidade_pessoas, mesa_id, observacoes } = req.body;
 
@@ -673,7 +699,6 @@ router.post('/reservas-mesa', async (req, res) => {
   }
 });
 
-// PUT /api/reservas-mesa/:id — atualiza status ou atribui uma mesa
 router.put('/reservas-mesa/:id', async (req, res) => {
   const { status, mesa_id } = req.body;
 
@@ -698,7 +723,6 @@ router.put('/reservas-mesa/:id', async (req, res) => {
 
 // ========== CUPONS DE DESCONTO ==========
 
-// GET /api/cupons — lista todos (protegido, só Admin)
 router.get('/cupons', verificarAdmin, async (_req, res) => {
   try {
     const resultado = await pool.query('SELECT * FROM cupons ORDER BY criado_em DESC');
@@ -709,7 +733,6 @@ router.get('/cupons', verificarAdmin, async (_req, res) => {
   }
 });
 
-// POST /api/cupons — cria um cupom (protegido)
 router.post('/cupons', verificarAdmin, async (req, res) => {
   const { codigo, tipo, valor, validade_inicio, validade_fim, limite_usos } = req.body;
 
@@ -733,7 +756,6 @@ router.post('/cupons', verificarAdmin, async (req, res) => {
   }
 });
 
-// PUT /api/cupons/:id — edita ou ativa/desativa (protegido)
 router.put('/cupons/:id', verificarAdmin, async (req, res) => {
   const { tipo, valor, ativo, validade_inicio, validade_fim, limite_usos } = req.body;
 
@@ -754,7 +776,6 @@ router.put('/cupons/:id', verificarAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/cupons/:id (protegido)
 router.delete('/cupons/:id', verificarAdmin, async (req, res) => {
   try {
     const resultado = await pool.query('DELETE FROM cupons WHERE id = $1 RETURNING id', [req.params.id]);
@@ -768,7 +789,6 @@ router.delete('/cupons/:id', verificarAdmin, async (req, res) => {
   }
 });
 
-// POST /api/cupons/validar — usado pelo Cliente no checkout (rota pública)
 router.post('/cupons/validar', async (req, res) => {
   const { codigo, subtotal, taxa_entrega } = req.body;
 
@@ -869,7 +889,6 @@ router.post('/auth/cliente/login', async (req, res) => {
   }
 });
 
-// GET /api/clientes/meu-perfil — dados completos do cliente logado (endereço, CPF)
 router.get('/clientes/meu-perfil', verificarAutenticado, async (req, res) => {
   const usuario = (req as any).usuario;
   if (usuario.tipo !== 'cliente') {
@@ -888,7 +907,6 @@ router.get('/clientes/meu-perfil', verificarAutenticado, async (req, res) => {
   }
 });
 
-// PUT /api/clientes/meu-perfil — atualiza dados pessoais e endereço
 router.put('/clientes/meu-perfil', verificarAutenticado, async (req, res) => {
   const usuario = (req as any).usuario;
   if (usuario.tipo !== 'cliente') {
@@ -919,17 +937,17 @@ router.post('/pedidos', async (req, res) => {
     cupom_codigo, valor_desconto, forma_pagamento,
     comanda_nome, garcom_username, gorjeta_valor, cpf_nota
   } = req.body;
- 
+
   if (!tipo || !itens || itens.length === 0) {
     return res.status(400).json({ mensagem: 'tipo e itens são obrigatórios.' });
   }
- 
+
   const statusInicial = forma_pagamento === 'Pix' ? 'aguardando_pagamento' : 'recebido';
- 
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
- 
+
     const pedidoResult = await client.query(
       `INSERT INTO pedidos
         (tipo, cliente_id, cliente_nome, cliente_telefone, mesa_id, subtotal, taxa_entrega, total,
@@ -941,7 +959,7 @@ router.post('/pedidos', async (req, res) => {
        comanda_nome || null, garcom_username || null, gorjeta_valor || 0, cpf_nota || null]
     );
     const pedido = pedidoResult.rows[0];
- 
+
     for (const item of itens) {
       await client.query(
         `INSERT INTO itens_pedido (pedido_id, pizza_id, nome, tamanho, extras, observacoes, quantidade, preco_unitario)
@@ -950,17 +968,17 @@ router.post('/pedidos', async (req, res) => {
          item.observacoes || null, item.quantidade || 1, item.precoUnitario]
       );
     }
- 
+
     await client.query(
       `INSERT INTO pedido_pagamentos (pedido_id, nome_pagador, valor_pago, forma_pagamento)
        VALUES ($1,$2,$3,$4)`,
       [pedido.id, cliente_nome, total, forma_pagamento]
     );
- 
+
     if (cupom_codigo) {
       await client.query('UPDATE cupons SET usos_atuais = usos_atuais + 1 WHERE codigo = $1', [cupom_codigo.toUpperCase()]);
     }
- 
+
     await client.query('COMMIT');
     res.status(201).json(pedido);
   } catch (erro) {
@@ -972,9 +990,7 @@ router.post('/pedidos', async (req, res) => {
   }
 });
 
-
-// IMPORTANTE: /pedidos/meus e as rotas fixas precisam vir ANTES de /pedidos/:id,
-// senão o Express interpreta "meus" como se fosse um :id
+// IMPORTANTE: rotas fixas de /pedidos precisam vir ANTES de /pedidos/:id
 
 router.get('/pedidos/meus', verificarAutenticado, async (req, res) => {
   const usuario = (req as any).usuario;
@@ -995,7 +1011,6 @@ router.get('/pedidos/meus', verificarAutenticado, async (req, res) => {
   }
 });
 
-// GET /api/pedidos/pendentes-pagamento — pedidos Pix aguardando confirmação
 router.get('/pedidos/pendentes-pagamento', verificarAdmin, async (_req, res) => {
   try {
     const resultado = await pool.query(
@@ -1009,7 +1024,6 @@ router.get('/pedidos/pendentes-pagamento', verificarAdmin, async (_req, res) => 
   }
 });
 
-// GET /api/pedidos/retirada — pedidos tipo retirada ainda não finalizados (Balcão)
 router.get('/pedidos/retirada', verificarEquipe, async (_req, res) => {
   try {
     const resultado = await pool.query(
@@ -1026,12 +1040,11 @@ router.get('/pedidos/retirada', verificarEquipe, async (_req, res) => {
   }
 });
 
-// GET /api/pedidos/cozinha — fila de pedidos a preparar (Cozinha e Balcão)
 router.get('/pedidos/cozinha', verificarCargo('cozinha', 'balcao'), async (_req, res) => {
   try {
     const resultado = await pool.query(
       `SELECT p.*, (SELECT json_agg(i) FROM itens_pedido i WHERE i.pedido_id = p.id) AS itens 
-       FROM pedidos p WHERE p.status IN ('recebido', 'preparo') 
+       FROM pedidos p WHERE p.status IN ('recebido', 'preparo', 'pronto') 
        ORDER BY p.criado_em`
     );
     res.json(resultado.rows);
@@ -1040,9 +1053,6 @@ router.get('/pedidos/cozinha', verificarCargo('cozinha', 'balcao'), async (_req,
     res.status(500).json({ mensagem: 'Erro ao buscar fila da cozinha.' });
   }
 });
-
-// Rotas fixas do Motoboy precisam vir antes de /pedidos/:id
-// GET /api/pedidos/motoboy — pedidos tipo entrega com status pronto e motoboy_chamado = true
 
 router.get('/pedidos/entregas-disponiveis', verificarCargo('motoboy'), async (_req, res) => {
   try {
@@ -1078,7 +1088,6 @@ router.get('/pedidos/minhas-entregas', verificarCargo('motoboy'), async (req, re
   }
 });
 
-// GET /api/pedidos/ativos — todos os pedidos em andamento (qualquer membro da equipe pode ver)
 router.get('/pedidos/ativos', verificarEquipe, async (_req, res) => {
   try {
     const resultado = await pool.query(
@@ -1107,7 +1116,6 @@ router.get('/pedidos/:id', async (req, res) => {
   }
 });
 
-// PUT /api/pedidos/:id/confirmar-pagamento — Admin confere que o Pix caiu de verdade
 router.put('/pedidos/:id/confirmar-pagamento', verificarAdmin, async (req, res) => {
   try {
     const resultado = await pool.query(
@@ -1124,7 +1132,6 @@ router.put('/pedidos/:id/confirmar-pagamento', verificarAdmin, async (req, res) 
   }
 });
 
-// PUT /api/pedidos/:id/recusar-pagamento — Admin não encontrou o pagamento na conta
 router.put('/pedidos/:id/recusar-pagamento', verificarAdmin, async (req, res) => {
   try {
     const resultado = await pool.query(
@@ -1140,7 +1147,7 @@ router.put('/pedidos/:id/recusar-pagamento', verificarAdmin, async (req, res) =>
     res.status(500).json({ mensagem: 'Erro ao recusar pagamento.' });
   }
 });
-// GET /api/comandas?mesa_id=X — comandas abertas de uma mesa
+
 router.get('/comandas', verificarEquipe, async (req, res) => {
   const { mesa_id } = req.query;
   try {
@@ -1157,7 +1164,6 @@ router.get('/comandas', verificarEquipe, async (req, res) => {
   }
 });
 
-// PUT /api/pedidos/:id/atender — garçom assume um pedido presencial feito pelo Cliente, podendo definir a mesa
 router.put('/pedidos/:id/atender', verificarCargo('garcom'), async (req, res) => {
   const usuario = (req as any).usuario;
   const { mesa_id } = req.body;
@@ -1190,8 +1196,6 @@ router.post('/pedidos/:id/pagamentos', verificarEquipe, async (req, res) => {
   }
 });
 
-
-
 // ========== EDIÇÃO DE ITENS DE UM PEDIDO (equipe: admin ou funcionário) ==========
 
 async function recalcularTotalPedido(pedidoId: number) {
@@ -1208,7 +1212,6 @@ async function recalcularTotalPedido(pedidoId: number) {
   await pool.query('UPDATE pedidos SET subtotal = $1, total = $2 WHERE id = $3', [subtotal, total, pedidoId]);
 }
 
-// POST /api/pedidos/:id/itens — equipe adiciona um item extra a um pedido já em andamento
 router.post('/pedidos/:id/itens', verificarEquipe, async (req, res) => {
   const { nome, tamanho, extras, observacoes, quantidade, preco_unitario, pizza_id } = req.body;
 
@@ -1230,7 +1233,6 @@ router.post('/pedidos/:id/itens', verificarEquipe, async (req, res) => {
   }
 });
 
-// PUT /api/pedidos/:id/itens/:itemId/cancelar — equipe cancela um item específico (risca, não apaga)
 router.put('/pedidos/:id/itens/:itemId/cancelar', verificarEquipe, async (req, res) => {
   try {
     const resultado = await pool.query(
@@ -1248,7 +1250,6 @@ router.put('/pedidos/:id/itens/:itemId/cancelar', verificarEquipe, async (req, r
   }
 });
 
-// PUT /api/pedidos/:id/status — equipe muda o status; cozinha só pode ir pra preparo/pronto
 router.put('/pedidos/:id/status', verificarAutenticado, async (req, res) => {
   const usuario = (req as any).usuario;
   const { status } = req.body;
@@ -1276,9 +1277,6 @@ router.put('/pedidos/:id/status', verificarAutenticado, async (req, res) => {
   }
 });
 
-
-//adicionando confirmações de mesa servida pelo garçom
-
 router.put('/pedidos/:id/servido', verificarCargo('garcom'), async (req, res) => {
   try {
     const resultado = await pool.query('UPDATE pedidos SET servido = true WHERE id = $1 RETURNING *', [req.params.id]);
@@ -1291,7 +1289,6 @@ router.put('/pedidos/:id/servido', verificarCargo('garcom'), async (req, res) =>
     res.status(500).json({ mensagem: 'Erro ao marcar como servido.' });
   }
 });
-//chamar entregador e fila do motoboy
 
 router.put('/pedidos/:id/chamar-motoboy', verificarCargo('cozinha', 'balcao', 'garcom'), async (req, res) => {
   try {
@@ -1306,7 +1303,6 @@ router.put('/pedidos/:id/chamar-motoboy', verificarCargo('cozinha', 'balcao', 'g
   }
 });
 
- 
 router.put('/pedidos/:id/assumir-entrega', verificarCargo('motoboy'), async (req, res) => {
   const usuario = (req as any).usuario;
   try {
@@ -1335,7 +1331,6 @@ function calcularDataInicial(periodo: any): Date {
   return agora;
 }
 
-// Dashboard do Garçom — gorjeta dividida por dia trabalhado
 router.get('/dashboard/garcom', verificarCargo('garcom'), async (req, res) => {
   const usuario = (req as any).usuario;
   const { periodo } = req.query;
@@ -1379,7 +1374,6 @@ router.get('/dashboard/garcom', verificarCargo('garcom'), async (req, res) => {
   }
 });
 
-// Dashboard do Motoboy — taxa de entrega x quantidade
 router.get('/dashboard/motoboy', verificarCargo('motoboy'), async (req, res) => {
   const usuario = (req as any).usuario;
   const { periodo } = req.query;
@@ -1406,7 +1400,6 @@ router.get('/dashboard/motoboy', verificarCargo('motoboy'), async (req, res) => 
   }
 });
 
-// GET /api/pedidos — histórico completo (concluídos e cancelados), com filtro por período ou ano específico
 router.get('/pedidos', verificarAdmin, async (req, res) => {
   const { periodo, ano } = req.query;
   try {
@@ -1437,7 +1430,6 @@ router.get('/pedidos', verificarAdmin, async (req, res) => {
   }
 });
 
-// GET /api/dashboard/admin — totais gerais, com filtro por período
 router.get('/dashboard/admin', verificarAdmin, async (req, res) => {
   const { periodo } = req.query;
   try {
@@ -1458,7 +1450,6 @@ router.get('/dashboard/admin', verificarAdmin, async (req, res) => {
     );
     const funcionarios = await pool.query("SELECT COUNT(*) AS ativos FROM funcionarios WHERE aprovado = true");
 
-    // ---- Gorjetas: dividir igualmente entre os garçons que trabalharam em cada dia ----
     const linhasGorjeta = await pool.query(
       `SELECT criado_em::date AS dia, garcom_username, gorjeta_valor
        FROM pedidos WHERE status = 'finalizado' AND garcom_username IS NOT NULL ${condicaoData}`,
@@ -1487,7 +1478,6 @@ router.get('/dashboard/admin', verificarAdmin, async (req, res) => {
       username, valor: Number((valor as number).toFixed(2))
     }));
 
-    // ---- Motoboys: cada um recebe taxa_entrega x quantidade de entregas próprias ----
     const linhasEntrega = await pool.query(
       `SELECT motoboy_username, COUNT(*) AS qtd, COALESCE(SUM(taxa_entrega), 0) AS total
        FROM pedidos WHERE status = 'finalizado' AND motoboy_username IS NOT NULL ${condicaoData}
@@ -1516,7 +1506,6 @@ router.get('/dashboard/admin', verificarAdmin, async (req, res) => {
   }
 });
 
-// GET /api/pedidos/:id/avaliacao — verifica se já existe avaliação (pública, usada pela tela de acompanhamento)
 router.get('/pedidos/:id/avaliacao', async (req, res) => {
   try {
     const resultado = await pool.query('SELECT * FROM avaliacoes WHERE pedido_id = $1', [req.params.id]);
@@ -1527,7 +1516,6 @@ router.get('/pedidos/:id/avaliacao', async (req, res) => {
   }
 });
 
-// POST /api/pedidos/:id/avaliacao — cliente avalia (só pode uma vez, e só se o pedido estiver finalizado)
 router.post('/pedidos/:id/avaliacao', async (req, res) => {
   const { nota, comentario } = req.body;
 
@@ -1558,7 +1546,6 @@ router.post('/pedidos/:id/avaliacao', async (req, res) => {
   }
 });
 
-// GET /api/avaliacoes/media — média geral (pública, usada no painel do Admin)
 router.get('/avaliacoes/media', async (_req, res) => {
   try {
     const resultado = await pool.query('SELECT COALESCE(AVG(nota), 0) AS media, COUNT(*) AS total FROM avaliacoes');

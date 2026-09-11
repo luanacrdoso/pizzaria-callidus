@@ -417,3 +417,41 @@ hr { border: none; border-top: 1px solid var(--border-soft); margin: 20px 0; }
 .box-resumo-pedido { background: var(--cream-2); border-radius: var(--radius-md); padding: 16px; margin: 20px 0; }
 .contato-pills { display: flex; gap: 12px; justify-content: center; margin-top: 16px; }
 .pill-contato { background: var(--info-tint); color: var(--info); border-radius: var(--radius-full); padding: 10px 18px; font-weight: 600; box-shadow: none; display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---------- Cartão de comanda (Garçom) ---------- */
+.comanda-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.comanda-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.comanda-card-header h3 { margin: 0; font-size: 1.05rem; }
+.comanda-card-mesa { color: var(--ink-faint); font-size: 0.88rem; }
+.comanda-card-itens { list-style: none; padding: 0; margin: 0 0 14px; }
+.comanda-card-itens li {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+.comanda-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+.comanda-card-total { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
