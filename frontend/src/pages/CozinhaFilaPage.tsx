@@ -1,10 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
 import { buscarFilaCozinha, atualizarStatusPedido } from '../api/pedidosEquipe';
 import { fetchComoFuncionario } from '../api/funcionarioAuth';
 
-export function CozinhaFilaPage() {
+type ItemPedido = {
+  id: number;
+  status: string;
+  quantidade: number;
+  nome: string;
+  tamanho: string;
+  extras?: string[];
+  observacoes?: string;
+};
 
+type Pedido = {
+  id: number;
+  tipo: string;
+  criado_em: string;
+  status: string;
+  motoboy_chamado: boolean;
+  itens: ItemPedido[];
+};
+
+export function CozinhaFilaPage() {
   const queryClient = useQueryClient();
 
   const { data: pedidos, isLoading, isError } = useQuery({
@@ -16,18 +33,15 @@ export function CozinhaFilaPage() {
   const mutationStatus = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) =>
       atualizarStatusPedido(id, status),
-
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['fila-cozinha'] }),
   });
 
   if (isLoading) return <p style={{ padding: 24 }}>Carregando fila...</p>;
-
   if (isError) return <p style={{ padding: 24 }}>Erro ao carregar a fila.</p>;
 
   return (
     <div style={{ padding: 24 }}>
-
       <h1>Fila da Cozinha</h1>
 
       {pedidos.length === 0 && (
@@ -35,9 +49,7 @@ export function CozinhaFilaPage() {
       )}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
-
-        {pedidos.map((p: any) => (
-
+        {pedidos.map((p: Pedido) => (
           <div
             key={p.id}
             style={{
@@ -47,7 +59,6 @@ export function CozinhaFilaPage() {
               minWidth: 260
             }}
           >
-
             <h2 style={{ marginTop: 0 }}>
               Pedido #{p.id} — {p.tipo}
             </h2>
@@ -57,37 +68,30 @@ export function CozinhaFilaPage() {
             </p>
 
             <ul>
-
               {(p.itens ?? [])
-                .filter((i: any) => i.status === "ativo")
-                .map((i: any) => (
-
+                .filter((i: ItemPedido) => i.status === "ativo")
+                .map((i: ItemPedido) => (
                   <li key={i.id} style={{ marginBottom: 6 }}>
-
                     <strong>
                       {i.quantidade}x {i.nome}
                     </strong> ({i.tamanho})
 
-                    {i.extras?.length > 0 && (
-                      <div style={{ fontSize: 13 }}>
-                        + {i.extras.join(", ")}
-                      </div>
-                    )}
+                    {(i.extras?.length ?? 0) > 0 && (
+  <div style={{ fontSize: 13 }}>
+    + {i.extras?.join(", ")}
+  </div>
+)}
 
                     {i.observacoes && (
                       <div style={{ fontSize: 13, color: "#c0392b" }}>
                         Obs: {i.observacoes}
                       </div>
                     )}
-
                   </li>
-
                 ))}
-
             </ul>
 
             <div style={{ display: "flex", gap: 8 }}>
-
               <button
                 onClick={() =>
                   mutationStatus.mutate({
@@ -125,15 +129,10 @@ export function CozinhaFilaPage() {
                     Chamar entregador
                   </button>
                 )}
-
             </div>
-
           </div>
-
         ))}
-
       </div>
-
     </div>
   );
 }
