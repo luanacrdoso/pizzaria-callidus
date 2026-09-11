@@ -1,16 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { logout } from '../api/auth';
 
-const linkStyle = ({ isActive }: { isActive: boolean }) => ({
-  display: 'block',
-  padding: '8px 12px',
-  marginBottom: 4,
-  textDecoration: 'none',
-  color: isActive ? '#fff' : '#333',
-  background: isActive ? '#ef4444' : '#f5f5f5',
-  borderRadius: 6
-});
-
 export function AdminLayout() {
   const navigate = useNavigate();
 
@@ -19,34 +9,29 @@ export function AdminLayout() {
     navigate('/admin/login');
   };
 
-return (
-  <div style={{ display: 'flex', height: '100vh' }}>
-    <nav style={{
-      width: 200,
-      padding: 16,
-      borderRight: '1px solid #ddd',
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      boxSizing: 'border-box'
-    }}>
-      <h2 style={{ fontSize: 16 }}>Painel Admin</h2>
-      <NavLink to="/admin/config" style={linkStyle}>Aparência</NavLink>
-      <NavLink to="/admin/cardapio" style={linkStyle}>Cardápio</NavLink>
-      <NavLink to="/admin/mesas" style={linkStyle}>Mesas</NavLink>
-      <NavLink to="/admin/salao" style={linkStyle}>Salão de Eventos</NavLink>
-      <NavLink to="/admin/reservas-mesa" style={linkStyle}>Reservas de Mesa</NavLink>
-      <NavLink to="/admin/cupons" style={linkStyle}>Cupons</NavLink>
-      <NavLink to="/admin/funcionarios" style={linkStyle}>Funcionários</NavLink>
-      <NavLink to="/admin/pagamentos-pendentes" style={linkStyle}>Pagamentos Pix</NavLink>
-      <NavLink to="/admin/pedidos-ativos" style={linkStyle}>Pedidos Ativos</NavLink>
-      <NavLink to="/admin/pedidos" style={linkStyle}>Histórico de Pedidos</NavLink>
-      <NavLink to="/admin/dashboard" style={linkStyle}>Dashboard</NavLink>
-      <button onClick={handleLogout} style={{ marginTop: 'auto' }}>Sair</button>
-      <NavLink to="/admin/perfil" style={linkStyle}>Meus Dados</NavLink>
-    </nav>
-    <div style={{ flex: 1, overflowY: 'auto' }}>
-      <Outlet />
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <aside className="sidebar-equipe">
+        <h2>⚙️ Painel Admin</h2>
+        
+        <NavLink to="/admin/config" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Aparência</NavLink>
+        <NavLink to="/admin/cardapio" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Cardápio</NavLink>
+        <NavLink to="/admin/mesas" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Mesas</NavLink>
+        <NavLink to="/admin/salao" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Salão de Eventos</NavLink>
+        <NavLink to="/admin/reservas-mesa" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Reservas</NavLink>
+        <NavLink to="/admin/cupons" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Cupons</NavLink>
+        <NavLink to="/admin/funcionarios" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Funcionários</NavLink>
+        <NavLink to="/admin/pagamentos-pendentes" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Pagamentos Pix</NavLink>
+        <NavLink to="/admin/pedidos-ativos" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Pedidos Ativos</NavLink>
+        <NavLink to="/admin/pedidos" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Histórico</NavLink>
+        <NavLink to="/admin/dashboard" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Dashboard</NavLink>
+        
+        <button onClick={handleLogout} className="sidebar-sair">Sair</button>
+      </aside>
+
+      <main className="conteudo-equipe" style={{ padding: '32px 24px' }}>
+        <Outlet />
+      </main>
     </div>
-  </div>
-)};
+  );
+}
