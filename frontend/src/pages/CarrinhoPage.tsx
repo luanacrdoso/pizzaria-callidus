@@ -7,41 +7,47 @@ export function CarrinhoPage() {
 
   if (itens.length === 0) {
     return (
-      <div style={{ padding: 24 }}>
+      <div className="text-center" style={{ padding: 60 }}>
         <p>Seu carrinho está vazio.</p>
-        <Link to="/">Ver cardápio</Link>
+        <Link to="/"><button>Ver Cardápio</button></Link>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1>Carrinho</h1>
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        {itens.map((item, i) => (
-          <li key={i} style={{ marginBottom: 12, borderBottom: "1px solid #eee", paddingBottom: 8 }}>
-            <strong>{item.nome}</strong> ({item.tamanho})
-            {item.extras.length > 0 && <div style={{ fontSize: 13, color: "#666" }}>+ {item.extras.join(", ")}</div>}
-            {item.observacoes && <div style={{ fontSize: 13, color: "#666" }}>Obs: {item.observacoes}</div>}
-            <div style={{ marginTop: 4 }}>
-              Qtd:
-              <input
-                type="number"
-                min={1}
-                value={item.quantidade}
-                onChange={(e) => alterarQuantidade(i, Number(e.target.value))}
-                style={{ width: 50, margin: "0 8px" }}
-              />
-              R$ {(item.precoUnitario * item.quantidade).toFixed(2)}
-              <button onClick={() => removerItem(i)} style={{ marginLeft: 8 }}>Remover</button>
+    <div>
+      <h1>Seu Carrinho</h1>
+      <div className="carrinho-grid">
+        <div>
+          {itens.map((item, i) => (
+            <div key={i} className="card-simples item-carrinho">
+              {item.imagemUrl
+                ? <img src={item.imagemUrl} alt={item.nome} className="item-carrinho-img" />
+                : <div className="item-carrinho-img" style={{ background: 'var(--cream-2)' }} />}
+              <div style={{ flex: 1 }}>
+                <strong>{item.nome}</strong>
+                <div className="subtext">Tamanho: {item.tamanho}</div>
+                {item.extras.length > 0 && <div className="subtext">+ {item.extras.join(', ')}</div>}
+                {item.observacoes && <div className="subtext">Obs: {item.observacoes}</div>}
+                <div style={{ fontWeight: 700, marginTop: 4 }}>Preço Unitário: R$ {item.precoUnitario.toFixed(2)}</div>
+              </div>
+              <div className="stepper-qtd">
+                <button onClick={() => alterarQuantidade(i, Math.max(1, item.quantidade - 1))}>-</button>
+                <span>{item.quantidade}</span>
+                <button onClick={() => alterarQuantidade(i, item.quantidade + 1)}>+</button>
+              </div>
+              <button className="btn-link" onClick={() => removerItem(i)}>Remover</button>
             </div>
-          </li>
-        ))}
-      </ul>
-      <p><strong>Subtotal: R$ {subtotal.toFixed(2)}</strong></p>
-      <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
-        <Link to="/"><button>Continuar comprando</button></Link>
-        <Link to="/checkout"><button>Ir para o checkout</button></Link>
+          ))}
+        </div>
+
+        <div className="resumo-pedido">
+          <h3>Resumo do Pedido</h3>
+          <div className="resumo-linha"><span>Subtotal</span><span>R$ {subtotal.toFixed(2)}</span></div>
+          <div className="resumo-linha"><span>Taxa de entrega (se aplicável)</span><span>calculada no checkout</span></div>
+          <div className="resumo-linha total"><span>Total estimado</span><span>R$ {subtotal.toFixed(2)}</span></div>
+          <Link to="/checkout"><button className="cta-fixo">Prosseguir →</button></Link>
+        </div>
       </div>
     </div>
   );

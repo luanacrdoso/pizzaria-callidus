@@ -39,6 +39,9 @@ return (
       <NavLink to="/admin/cupons" style={linkStyle}>Cupons</NavLink>
       <NavLink to="/admin/funcionarios" style={linkStyle}>Funcionários</NavLink>
       <NavLink to="/admin/pagamentos-pendentes" style={linkStyle}>Pagamentos Pix</NavLink>
+      <NavLink to="/admin/pedidos-ativos" style={linkStyle}>Pedidos Ativos</NavLink>
+      <NavLink to="/admin/pedidos" style={linkStyle}>Histórico de Pedidos</NavLink>
+      <NavLink to="/admin/dashboard" style={linkStyle}>Dashboard</NavLink>
       <button onClick={handleLogout} style={{ marginTop: 'auto' }}>Sair</button>
       <NavLink to="/admin/perfil" style={linkStyle}>Meus Dados</NavLink>
     </nav>
