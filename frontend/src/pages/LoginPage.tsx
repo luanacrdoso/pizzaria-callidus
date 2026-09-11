@@ -40,26 +40,68 @@ export function LoginPage({ default: tipoInicial = 'cliente' }: { default?: Tipo
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-      <div style={{ width: 320 }}>
-        <h1>Entrar</h1>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', padding: '20px' }}>
+      <div className="card-central" style={{ width: '100%', maxWidth: '420px' }}>
+        <h1 className="text-center">Acessar Conta</h1>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <button type="button" onClick={() => setTipo('cliente')} disabled={tipo === 'cliente'}>Cliente</button>
-          <button type="button" onClick={() => setTipo('equipe')} disabled={tipo === 'equipe'}>Equipe</button>
-          <button type="button" onClick={() => setTipo('admin')} disabled={tipo === 'admin'}>Admin</button>
+        <div className="filtros-cardapio" style={{ justifyContent: 'center', marginBottom: '20px' }}>
+          <button 
+            type="button" 
+            onClick={() => setTipo('cliente')} 
+            className={`categoria-pill ${tipo === 'cliente' ? 'ativa' : ''}`}
+          >
+            Cliente
+          </button>
+          <button 
+            type="button" 
+            onClick={() => setTipo('equipe')} 
+            className={`categoria-pill ${tipo === 'equipe' ? 'ativa' : ''}`}
+          >
+            Equipe
+          </button>
+          <button 
+            type="button" 
+            onClick={() => setTipo('admin')} 
+            className={`categoria-pill ${tipo === 'admin' ? 'ativa' : ''}`}
+          >
+            Admin
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <input placeholder="Usuário" value={username} onChange={(e) => setUsername(e.target.value)} />
-          <input placeholder="Senha" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          {erro && <p style={{ color: 'red' }}>{erro}</p>}
-          <button type="submit" disabled={carregando}>{carregando ? 'Entrando...' : 'Entrar'}</button>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>Usuário / E-mail</label>
+            <input 
+              style={{ width: '100%' }}
+              placeholder="Digite seu usuário" 
+              value={username} 
+              onChange={(e) => setUsername(e.target.value)} 
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600 }}>Senha</label>
+            <input 
+              type="password" 
+              style={{ width: '100%' }}
+              placeholder="Digite sua senha" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+            />
+          </div>
+
+          {erro && <div className="mensagem-erro-box" style={{ margin: '10px 0', padding: '10px' }}>{erro}</div>}
+
+          <button type="submit" disabled={carregando} style={{ width: '100%', marginTop: '10px' }}>
+            {carregando ? 'Entrando...' : 'Entrar'}
+          </button>
         </form>
 
-        {tipo === 'cliente' && <p style={{ marginTop: 12 }}><Link to="/cadastro">Criar conta</Link></p>}
-        {tipo === 'equipe' && <p style={{ marginTop: 12 }}><Link to="/equipe/cadastro">Criar cadastro da equipe</Link></p>}
-        <p><Link to="/esqueci-senha">Esqueci minha senha</Link></p>
+        <div className="text-center" style={{ marginTop: '20px' }}>
+          {tipo === 'cliente' && <p><Link to="/cadastro" className="subtext">Ainda não tem conta? <strong>Criar conta</strong></Link></p>}
+          {tipo === 'equipe' && <p><Link to="/equipe/cadastro" className="subtext"><strong>Criar cadastro da equipe</strong></Link></p>}
+          <p><Link to="/esqueci-senha" className="subtext">Esqueci minha senha</Link></p>
+        </div>
       </div>
     </div>
   );
