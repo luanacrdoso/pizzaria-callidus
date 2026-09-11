@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-
 import { AdminLayout } from './layouts/AdminLayout';
 import { ClienteLayout } from './layouts/ClienteLayout';
 import { AdminCardapioPage } from './pages/AdminCardapioPage';
@@ -10,7 +9,6 @@ import { AdminFuncionariosPage } from './pages/AdminFuncionariosPage';
 import { AdminPerfilPage } from './pages/AdminPerfilPage';
 import { AdminReservasMesaPage } from './pages/AdminReservasMesaPage';
 import { AdminCuponsPage } from './pages/AdminCuponsPage';
-import { LoginPage } from './pages/LoginPage';
 import { EsqueciSenhaPage } from './pages/EsqueciSenhaPage';
 import { RequireAuth } from './components/RequireAuth';
 import { CardapioPublicoPage } from './pages/CardapioPublicoPage';
@@ -20,13 +18,11 @@ import { PagamentoPage } from './pages/PagamentoPage';
 import { AcompanhamentoPage } from './pages/AcompanhamentoPage';
 import { HistoricoPedidosPage } from './pages/HistoricoPedidosPage';
 import { ReservarPage } from './pages/ReservarPage';
-import { ClienteLoginPage } from './pages/ClienteLoginPage';
 import { ClienteCadastroPage } from './pages/ClienteCadastroPage';
 import { ClientePerfilPage } from './pages/ClientePerfilPage';
 import { DetalheProdutoPage } from './pages/DetalheProdutoPage';
 import { AdminPagamentosPendentesPage } from './pages/AdminPagamentosPendentesPage';
 import { AdminPedidoDetalhePage } from './pages/AdminPedidoDetalhePage';
-import { FuncionarioLoginPage } from './pages/FuncionarioLoginPage';
 import { EquipeHomePage } from './pages/EquipeHomePage';
 import { FuncionarioCadastroPage } from './pages/FuncionarioCadastroPage';
 import { BalcaoLayout } from './layouts/BalcaoLayout';
@@ -46,6 +42,10 @@ import { GarcomDashboardPage } from './pages/GarcomDashboardPage';
 import { MotoboyDisponiveisPage } from './pages/MotoboyDisponiveisPage';
 import { MotoboyMinhasEntregasPage } from './pages/MotoboyMinhasEntregasPage';
 import { MotoboyDashboardPage } from './pages/MotoboyDashboardPage';
+import { LoginPage } from './pages/LoginPage';
+import { AdminPedidosPage } from './pages/AdminPedidosPage';
+import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { PedidosAtivosPage } from './pages/PedidosAtivosPage';
 
 function App() {
   return (
@@ -61,16 +61,16 @@ function App() {
         <Route path="pedido/:pedidoId" element={<AcompanhamentoPage />} />
         <Route path="meus-pedidos" element={<HistoricoPedidosPage />} />
         <Route path="reservar" element={<ReservarPage />} />
-        <Route path="login" element={<ClienteLoginPage />} />
+        <Route path="login" element={<LoginPage default="cliente" />} />
         <Route path="cadastro" element={<ClienteCadastroPage />} />
         <Route path="perfil" element={<ClientePerfilPage />} />
         <Route path="esqueci-senha" element={<EsqueciSenhaPage />} />
       </Route>
 
       {/* Painel Admin */}
-      <Route path="/admin/login" element={<LoginPage />} />
+      <Route path="/admin/login" element={<LoginPage default="admin" />} />
 
-      <Route path="/equipe/login" element={<FuncionarioLoginPage />} />
+      <Route path="/equipe/login" element={<LoginPage default="equipe" />} />
 
       <Route
         path="/equipe/balcao"
@@ -85,6 +85,7 @@ function App() {
         <Route path="reservas" element={<BalcaoReservasPage />} />
         <Route path="pedido-presencial" element={<BalcaoPedidoPresencialPage />} />
         <Route path="retirada" element={<BalcaoRetiradaPage />} />
+        <Route path="ativos" element={<PedidosAtivosPage destaque="retirada" />} />
       </Route>
 
       <Route
@@ -132,10 +133,10 @@ function App() {
         <Route path="perfil" element={<AdminPerfilPage />} />
         <Route path="reservas-mesa" element={<AdminReservasMesaPage />} />
         <Route path="cupons" element={<AdminCuponsPage />} />
-        <Route
-          path="pagamentos-pendentes"
-          element={<AdminPagamentosPendentesPage />}
-        />
+        <Route path="pagamentos-pendentes" element={<AdminPagamentosPendentesPage />} />
+        <Route path="pedidos-ativos" element={<PedidosAtivosPage />} />
+        <Route path="pedidos" element={<AdminPedidosPage />} />
+        <Route path="dashboard" element={<AdminDashboardPage />} />
       </Route>
 
       <Route
@@ -149,6 +150,7 @@ function App() {
         <Route index element={<Navigate to="comandas" replace />} />
         <Route path="comandas" element={<GarcomComandasPage />} />
         <Route path="servir" element={<GarcomServirPage />} />
+        <Route path="ativos" element={<PedidosAtivosPage destaque="presencial" permitirAtender />} />
         <Route path="dashboard" element={<GarcomDashboardPage />} />
       </Route>
 
