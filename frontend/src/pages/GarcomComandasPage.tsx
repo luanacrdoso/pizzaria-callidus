@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { buscarMesas } from '../api/mesas';
 import { buscarPizzas, buscarPizzaPorId } from '../api/pizzas';
+import { useSearchParams } from 'react-router-dom';
 
 async function buscarCardapioComoAny(): Promise<any[]> {
   const pizzas = await buscarPizzas();
@@ -28,6 +29,14 @@ export function GarcomComandasPage() {
   const { data: categorias } = useQuery({ queryKey: ['categorias'], queryFn: buscarCategorias });
 
   const [mesaId, setMesaId] = useState('');
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const mesaDaUrl = searchParams.get('mesa');
+    const comandaDaUrl = searchParams.get('comanda');
+    if (mesaDaUrl) setMesaId(mesaDaUrl);
+    if (comandaDaUrl) setComandaAlvo(Number(comandaDaUrl));
+  }, [searchParams]);
   const { data: comandas } = useQuery({
     queryKey: ['comandas', mesaId], queryFn: () => buscarComandas(Number(mesaId)), enabled: !!mesaId,
   });
