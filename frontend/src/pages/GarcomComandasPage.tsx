@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { buscarMesas } from '../api/mesas';
 import { buscarPizzas, buscarPizzaPorId } from '../api/pizzas';
-import { useSearchParams } from 'react-router-dom';
-
-async function buscarCardapioComoAny(): Promise<any[]> {
-  const pizzas = await buscarPizzas();
-  return pizzas as any[];
-}
 import { buscarAdicionais } from '../api/adicionais';
 import { buscarCategorias } from '../api/categorias';
 import { buscarComandas, adicionarItemAoPedido, registrarPagamento } from '../api/comandas';
 import { criarPedidoPresencial } from '../api/pedidosEquipe';
 import { fetchComoFuncionario, obterUsernameFuncionario } from '../api/funcionarioAuth';
 import { calcularPrecoPizzaMultiplosSabores } from '../api/precos';
+
+async function buscarCardapioComoAny(): Promise<any[]> {
+  const pizzas = await buscarPizzas();
+  return pizzas as any[];
+}
 
 const TAMANHOS = [
   { chave: 'brotinho', rotulo: 'Brotinho' },
@@ -37,12 +37,19 @@ export function GarcomComandasPage() {
     if (mesaDaUrl) setMesaId(mesaDaUrl);
     if (comandaDaUrl) setComandaAlvo(Number(comandaDaUrl));
   }, [searchParams]);
-  const { data: comandas } = useQuery({
-    queryKey: ['comandas', mesaId], queryFn: () => buscarComandas(Number(mesaId)), enabled: !!mesaId,
-  });
-  const invalidarComandas = () => queryClient.invalidateQueries({ queryKey: ['comandas', mesaId] });
 
-  // null = vai abrir comanda nova; número = vai adicionar itens numa comanda já existente
+  const { data: comandas } = useQuery({
+    queryKey: ['comandas', mesaId],
+    queryFn: () => buscarComandas(Number(mesaId)),
+    enabled: !!mesaId,
+    refetchInterval: 5000,
+  });
+
+  const invalidarComandas = () => {
+    queryClient.invalidateQueries({ queryKey: ['comandas', mesaId] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-garcom'] });
+  };
+
   const [comandaAlvo, setComandaAlvo] = useState<number | null>(null);
   const [novaComandaNome, setNovaComandaNome] = useState('');
   const [incluirGorjeta, setIncluirGorjeta] = useState(false);
@@ -63,19 +70,31 @@ export function GarcomComandasPage() {
   const produto: any = cardapio?.find((p: any) => String(p.id) === produtoId);
 
   useEffect(() => {
-    setDetalhe(null); setSaboresSelecionados([]); setEscolhasCombo({}); setTamanho('media');
+    setDetalhe(null);
+    setSaboresSelecionados([]);
+    setEscolhasCombo({});
+    setTamanho('media');
     if (produtoId) buscarPizzaPorId(Number(produtoId)).then(setDetalhe);
   }, [produtoId]);
 
   const limparItemAtual = () => {
-    setProdutoId(''); setDetalhe(null); setTamanho('media');
-    setSaboresSelecionados([]); setExtrasSelecionados([]); setEscolhasCombo({});
-    setQuantidade(1); setObservacoes('');
+    setProdutoId('');
+    setDetalhe(null);
+    setTamanho('media');
+    setSaboresSelecionados([]);
+    setExtrasSelecionados([]);
+    setEscolhasCombo({});
+    setQuantidade(1);
+    setObservacoes('');
   };
 
   const toggleExtra = (a: any) => {
     const jaTem = extrasSelecionados.some((e) => e.nome === a.nome);
-    setExtrasSelecionados(jaTem ? extrasSelecionados.filter((e) => e.nome !== a.nome) : [...extrasSelecionados, { nome: a.nome, preco: Number(a.preco) }]);
+    setExtrasSelecionados(
+      jaTem
+        ? extrasSelecionados.filter((e) => e.nome !== a.nome)
+        : [...extrasSelecionados, { nome: a.nome, preco: Number(a.preco) }]
+    );
   };
 
   const toggleSabor = (id: number) => {
@@ -101,14 +120,22 @@ export function GarcomComandasPage() {
   const montarNomeEPreco = (): { nome: string; precoUnitario: number } | null => {
     if (!produto) return null;
     if (produto.tipo === 'sabor_unico') {
-      return { nome: produto.nome, precoUnitario: Number(produto[`preco_${tamanho}`] ?? 0) + precoExtras };
+      return {
+        nome: produto.nome,
+        precoUnitario: Number(produto[`preco_${tamanho}`] ?? 0) + precoExtras,
+      };
     }
     if (produto.tipo === 'personalizavel') {
       if (saboresSelecionados.length === 0) return null;
-      const saboresObjetos = saboresSelecionados.map((id) => cardapio?.find((p: any) => p.id === id)).filter(Boolean) as any[];
+      const saboresObjetos = saboresSelecionados
+        .map((id) => cardapio?.find((p: any) => p.id === id))
+        .filter(Boolean) as any[];
       const precos = saboresObjetos.map((s) => Number(s[`preco_${tamanho}`] ?? 0));
       const precoBase = calcularPrecoPizzaMultiplosSabores(precos);
-      return { nome: `${produto.nome}: ${saboresObjetos.map((s) => s.nome).join(' / ')}`, precoUnitario: precoBase + precoExtras };
+      return {
+        nome: `${produto.nome}: ${saboresObjetos.map((s) => s.nome).join(' / ')}`,
+        precoUnitario: precoBase + precoExtras,
+      };
     }
     if (produto.tipo === 'combo') {
       const slots = detalhe?.combo_slots ?? [];
@@ -122,19 +149,33 @@ export function GarcomComandasPage() {
           if (item) nomesEscolhidos.push(item.nome);
         }
       }
-      return { nome: `${produto.nome} (${nomesEscolhidos.join(', ')})`, precoUnitario: Number(produto.preco_combo ?? 0) + precoExtras };
+      return {
+        nome: `${produto.nome} (${nomesEscolhidos.join(', ')})`,
+        precoUnitario: Number(produto.preco_combo ?? 0) + precoExtras,
+      };
     }
     return null;
   };
 
   const handleAdicionarItemNaLista = () => {
     const resultado = montarNomeEPreco();
-    if (!resultado || !produto) { setErro('Complete todas as escolhas do item antes de adicionar.'); return; }
+    if (!resultado || !produto) {
+      setErro('Complete todas as escolhas do item antes de adicionar.');
+      return;
+    }
     setErro('');
-    setItens([...itens, {
-      pizzaId: produto.id, nome: resultado.nome, tamanho: produto.tipo === 'combo' ? '-' : tamanho,
-      extras: extrasSelecionados.map((e) => e.nome), observacoes, quantidade, precoUnitario: resultado.precoUnitario,
-    }]);
+    setItens([
+      ...itens,
+      {
+        pizzaId: produto.id,
+        nome: resultado.nome,
+        tamanho: produto.tipo === 'combo' ? '-' : tamanho,
+        extras: extrasSelecionados.map((e) => e.nome),
+        observacoes,
+        quantidade,
+        precoUnitario: resultado.precoUnitario,
+      },
+    ]);
     limparItemAtual();
   };
 
@@ -142,21 +183,36 @@ export function GarcomComandasPage() {
   const subtotalNovosItens = itens.reduce((s, i) => s + i.precoUnitario * i.quantidade, 0);
 
   const handleConfirmarComanda = async () => {
-    if (itens.length === 0) { setErro('Adicione pelo menos um item antes de confirmar.'); return; }
-    setErro(''); setSucesso('');
+    if (itens.length === 0) {
+      setErro('Adicione pelo menos um item antes de confirmar.');
+      return;
+    }
+    setErro('');
+    setSucesso('');
 
     try {
       if (comandaAlvo === null) {
-        if (!novaComandaNome) { setErro('Digite o nome do responsável pela nova comanda.'); return; }
-        const gorjeta = incluirGorjeta ? Number((subtotalNovosItens * 0.10).toFixed(2)) : 0;
+        if (!novaComandaNome) {
+          setErro('Digite o nome do responsável pela nova comanda.');
+          return;
+        }
+        const gorjeta = incluirGorjeta ? Number((subtotalNovosItens * 0.1).toFixed(2)) : 0;
         await criarPedidoPresencial({
-          tipo: 'presencial', mesa_id: Number(mesaId), comanda_nome: novaComandaNome,
-          garcom_username: obterUsernameFuncionario(), cliente_nome: novaComandaNome,
-          itens, subtotal: subtotalNovosItens, taxa_entrega: 0, total: subtotalNovosItens + gorjeta,
-          gorjeta_valor: gorjeta, forma_pagamento: 'A definir',
+          tipo: 'presencial',
+          mesa_id: Number(mesaId),
+          comanda_nome: novaComandaNome,
+          garcom_username: obterUsernameFuncionario(),
+          cliente_nome: novaComandaNome,
+          itens,
+          subtotal: subtotalNovosItens,
+          taxa_entrega: 0,
+          total: subtotalNovosItens + gorjeta,
+          gorjeta_valor: gorjeta,
+          forma_pagamento: 'A definir',
         });
         setSucesso(`Comanda "${novaComandaNome}" aberta com sucesso!`);
-        setNovaComandaNome(''); setIncluirGorjeta(false);
+        setNovaComandaNome('');
+        setIncluirGorjeta(false);
       } else {
         for (const item of itens) {
           await adicionarItemAoPedido(comandaAlvo, item);
@@ -171,165 +227,388 @@ export function GarcomComandasPage() {
   };
 
   const handleFecharComanda = async (pedidoId: number, total: number, nomePagador: string) => {
-    await registrarPagamento(pedidoId, { nome_pagador: nomePagador, valor_pago: total, forma_pagamento: 'Dinheiro' });
-    await fetchComoFuncionario(`${import.meta.env.VITE_API_URL}/pedidos/${pedidoId}/status`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'finalizado' }),
-    });
-    invalidarComandas();
+    try {
+      await registrarPagamento(pedidoId, {
+        nome_pagador: nomePagador,
+        valor_pago: total,
+        forma_pagamento: 'Dinheiro',
+      });
+      const resposta = await fetchComoFuncionario(
+        `${import.meta.env.VITE_API_URL}/pedidos/${pedidoId}/status`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'finalizado' }),
+        }
+      );
+      if (!resposta.ok) {
+        const err = await resposta.json();
+        alert('Erro ao fechar comanda: ' + (err.mensagem || 'Erro desconhecido'));
+        return;
+      }
+      invalidarComandas();
+    } catch (e: any) {
+      alert('Erro ao fechar comanda: ' + e.message);
+    }
   };
 
   return (
-    <div style={{ padding: 24, maxWidth: 650 }}>
-      <h1>Comandas</h1>
+    <div style={{ maxWidth: 760, margin: '0 auto' }}>
+      <h1>🍽️ Gestão de Comandas</h1>
 
-      <h2>Passo 1 — Escolha a mesa</h2>
-      <select value={mesaId} onChange={(e) => { setMesaId(e.target.value); setComandaAlvo(null); }}>
-        <option value="">Selecione a mesa</option>
-        {mesas?.map((m: any) => <option key={m.id} value={m.id}>Mesa {m.numero}</option>)}
-      </select>
+      {/* PASSO 1: MESA */}
+      <div className="secao-checkout">
+        <h3>Passo 1 — Selecione a Mesa</h3>
+        <select
+          value={mesaId}
+          onChange={(e) => {
+            setMesaId(e.target.value);
+            setComandaAlvo(null);
+          }}
+          style={{ width: '100%' }}
+        >
+          <option value="">Clique para escolher a mesa...</option>
+          {mesas?.map((m: any) => (
+            <option key={m.id} value={m.id}>
+              Mesa {m.numero}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {mesaId && (
         <>
-          <h2>Passo 2 — Comandas abertas nesta mesa</h2>
-          {(!comandas || comandas.length === 0) && <p>Nenhuma comanda aberta ainda nesta mesa.</p>}
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {comandas?.map((c: any) => (
-              <li key={c.id} style={{
-                marginBottom: 8, padding: 8, borderRadius: 6,
-                border: comandaAlvo === c.id ? '2px solid #ef4444' : '1px solid #ddd',
-              }}>
-                <strong>{c.comanda_nome}</strong> — R$ {c.total}
-                <div style={{ marginTop: 4, display: 'flex', gap: 8 }}>
-                  <button onClick={() => setComandaAlvo(c.id)} disabled={comandaAlvo === c.id}>
-                    {comandaAlvo === c.id ? 'Selecionada para receber itens' : 'Adicionar itens nesta comanda'}
-                  </button>
-                  <button onClick={() => handleFecharComanda(c.id, c.total, c.comanda_nome)}>Fechar e pagar</button>
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          <button onClick={() => setComandaAlvo(null)} style={{ marginBottom: 16 }}>
-            {comandaAlvo === null ? '● Abrindo uma comanda nova' : 'Abrir uma comanda nova em vez disso'}
-          </button>
-
-          {comandaAlvo === null && (
-            <div style={{ padding: 12, background: '#f5f5f5', borderRadius: 6, marginBottom: 16 }}>
-              <label>Nome do responsável pela nova comanda:
-                <input value={novaComandaNome} onChange={(e) => setNovaComandaNome(e.target.value)} placeholder="Ex: João" style={{ marginLeft: 8 }} />
-              </label>
-              <label style={{ display: 'block', marginTop: 8 }}>
-                <input type="checkbox" checked={incluirGorjeta} onChange={(e) => setIncluirGorjeta(e.target.checked)} />
-                {' '}Incluir gorjeta de 10%
-              </label>
+          {/* PASSO 2: COMANDAS ABERTAS COM DETALHAMENTO DE ITENS */}
+          <div className="secao-checkout">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3>Passo 2 — Comandas Abertas na Mesa {mesaId}</h3>
+              <button
+                onClick={() => setComandaAlvo(null)}
+                className={comandaAlvo === null ? '' : 'btn-secundario'}
+                style={{ fontSize: '0.85rem' }}
+              >
+                {comandaAlvo === null ? '● Criando nova comanda' : '+ Nova Comanda'}
+              </button>
             </div>
-          )}
 
-          <h2>Passo 3 — Monte os itens</h2>
-          <select value={produtoId} onChange={(e) => setProdutoId(e.target.value)}>
-            <option value="">Selecione um produto</option>
-            {cardapio?.map((p: any) => <option key={p.id} value={p.id}>{p.nome} ({p.categoria})</option>)}
-          </select>
+            {(!comandas || comandas.length === 0) && (
+              <p className="subtext" style={{ padding: '12px 0' }}>
+                Nenhuma comanda aberta nesta mesa no momento.
+              </p>
+            )}
 
-          {produto && produto.tipo === 'sabor_unico' && (
-            <div style={{ marginTop: 8 }}>
-              {TAMANHOS.filter((t) => produto[`preco_${t.chave}`]).map((t) => (
-                <label key={t.chave} style={{ display: 'block' }}>
-                  <input type="radio" checked={tamanho === t.chave} onChange={() => setTamanho(t.chave)} />
-                  {' '}{t.rotulo} — R$ {Number(produto[`preco_${t.chave}`]).toFixed(2)}
-                </label>
-              ))}
-            </div>
-          )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 16 }}>
+              {comandas?.map((c: any) => {
+                const selecionada = comandaAlvo === c.id;
+                const listaItens = c.itens ?? [];
 
-          {produto && produto.tipo === 'personalizavel' && detalhe && (
-            <div style={{ marginTop: 8 }}>
-              <p>Tamanho:</p>
-              {TAMANHOS.filter((t) => produto[`preco_${t.chave}`]).map((t) => (
-                <label key={t.chave} style={{ display: 'inline-block', marginRight: 12 }}>
-                  <input type="radio" checked={tamanho === t.chave} onChange={() => { setTamanho(t.chave); setSaboresSelecionados([]); }} />
-                  {' '}{t.rotulo}
-                </label>
-              ))}
-              <p>Sabores (máx. {detalhe[`max_sabores_${tamanho}`] ?? '—'}):</p>
-              {(detalhe.sabores_permitidos ?? []).map((saborId: number) => {
-                const sabor = cardapio?.find((p: any) => p.id === saborId);
-                if (!sabor) return null;
                 return (
-                  <label key={saborId} style={{ display: 'block' }}>
-                    <input type="checkbox" checked={saboresSelecionados.includes(saborId)} onChange={() => toggleSabor(saborId)} />
-                    {' '}{sabor.nome} (R$ {Number(sabor[`preco_${tamanho}`] ?? 0).toFixed(2)} inteira)
-                  </label>
+                  <div
+                    key={c.id}
+                    className={`card-simples ${selecionada ? 'card-destaque' : ''}`}
+                    style={{ padding: 16 }}
+                  >
+                    {/* Cabeçalho da Comanda */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <div>
+                        <strong>👤 {c.comanda_nome}</strong>
+                        {c.criado_em && (
+                          <span className="subtext" style={{ marginLeft: 8 }}>
+                            🕒 {new Date(c.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+                      <span className={`status-badge status-${c.status}`}>
+                        {c.status}
+                      </span>
+                    </div>
+
+                    <hr style={{ margin: '8px 0' }} />
+
+                    {/* Detalhamento dos Itens do Pedido */}
+                    <div style={{ margin: '10px 0' }}>
+                      <strong style={{ fontSize: '0.85rem', color: 'var(--ink-soft)' }}>Itens na comanda:</strong>
+                      {listaItens.length === 0 ? (
+                        <p className="subtext" style={{ fontStyle: 'italic', marginTop: 4 }}>Nenhum item registrado.</p>
+                      ) : (
+                        <ul style={{ listStyle: 'none', paddingLeft: 0, margin: '8px 0 0' }}>
+                          {listaItens.map((item: any, idx: number) => (
+                            <li
+                              key={idx}
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'flex-start',
+                                marginBottom: 6,
+                                paddingBottom: 6,
+                                borderBottom: '1px dashed var(--border-soft)',
+                              }}
+                            >
+                              <div>
+                                <span style={{ fontWeight: 600 }}>
+                                  {item.quantidade}x {item.nome}
+                                </span>{' '}
+                                {item.tamanho && item.tamanho !== '-' && (
+                                  <span className="subtext">({item.tamanho})</span>
+                                )}
+                                {item.extras && (
+                                  <div className="subtext" style={{ fontSize: '0.8rem', color: 'var(--gold-dark)' }}>
+                                    + {Array.isArray(item.extras) ? item.extras.join(', ') : item.extras}
+                                  </div>
+                                )}
+                                {item.observacoes && (
+                                  <div style={{ fontSize: '0.8rem', color: 'var(--danger)' }}>
+                                    Obs: {item.observacoes}
+                                  </div>
+                                )}
+                              </div>
+                              <strong style={{ fontSize: '0.9rem' }}>
+                                R$ {(Number(item.preco_unitario ?? 0) * Number(item.quantidade ?? 1)).toFixed(2)}
+                              </strong>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    {/* Rodapé da Comanda com Total e Ações */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                      <div>
+                        <span className="subtext">Total Acumulado: </span>
+                        <strong style={{ fontSize: '1.1rem', color: 'var(--gold-dark)' }}>
+                          R$ {Number(c.total).toFixed(2)}
+                        </strong>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => setComandaAlvo(c.id)}
+                          disabled={selecionada}
+                          className={selecionada ? '' : 'btn-secundario'}
+                          style={{ fontSize: '0.82rem' }}
+                        >
+                          {selecionada ? '✓ Selecionada' : '+ Lançar Itens'}
+                        </button>
+                        <button
+                          onClick={() => handleFecharComanda(c.id, c.total, c.comanda_nome)}
+                          style={{ fontSize: '0.82rem', background: 'var(--success)' }}
+                        >
+                          Fechar e Pagar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 );
               })}
             </div>
-          )}
 
-          {produto && produto.tipo === 'combo' && detalhe && (
-            <div style={{ marginTop: 8 }}>
-              <p><strong>Combo: R$ {Number(produto.preco_combo ?? 0).toFixed(2)}</strong></p>
-              {(detalhe.combo_slots ?? []).map((slot: any, slotIndex: number) => (
-                <div key={slotIndex} style={{ marginBottom: 8 }}>
-                  <p>{slot.rotulo || nomeCategoria(slot.categoria_id)}</p>
-                  {Array.from({ length: slot.quantidade }).map((_, pos) => (
-                    <select
-                      key={pos}
-                      value={escolhasCombo[slotIndex]?.[pos] ?? ''}
-                      onChange={(e) => atualizarEscolhaCombo(slotIndex, pos, e.target.value)}
-                      style={{ marginRight: 8, marginBottom: 4 }}
-                    >
-                      <option value="">Escolha {pos + 1}</option>
-                      {cardapio?.filter((p: any) => p.categoria_id === slot.categoria_id && p.tipo !== 'combo').map((p: any) => (
-                        <option key={p.id} value={p.id}>{p.nome}</option>
-                      ))}
-                    </select>
-                  ))}
-                </div>
+            {comandaAlvo === null && (
+              <div style={{ padding: 16, background: 'var(--cream-2)', borderRadius: 'var(--radius-sm)' }}>
+                <label className="campo-label" style={{ display: 'block', marginBottom: 6 }}>
+                  Nome do Responsável pela Nova Comanda:
+                </label>
+                <input
+                  value={novaComandaNome}
+                  onChange={(e) => setNovaComandaNome(e.target.value)}
+                  placeholder="Ex: João Silva"
+                  style={{ width: '100%', marginBottom: 10 }}
+                />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={incluirGorjeta}
+                    onChange={(e) => setIncluirGorjeta(e.target.checked)}
+                  />
+                  Incluir 10% de gorjeta do garçom
+                </label>
+              </div>
+            )}
+          </div>
+
+          {/* PASSO 3: MONTAGEM DO NOVO ITEM */}
+          <div className="secao-checkout">
+            <h3>Passo 3 — Monte os Itens para Lançar</h3>
+            <select
+              value={produtoId}
+              onChange={(e) => setProdutoId(e.target.value)}
+              style={{ width: '100%', marginBottom: 12 }}
+            >
+              <option value="">Escolha um produto do cardápio...</option>
+              {cardapio?.map((p: any) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome} ({p.categoria})
+                </option>
               ))}
-            </div>
-          )}
+            </select>
 
-          {produto && (
-            <>
-              {(adicionais?.length ?? 0) > 0 && (
-                <div style={{ marginTop: 8 }}>
-                  <p>Adicionais:</p>
-                  {adicionais?.map((a: any) => (
-                    <label key={a.id} style={{ display: 'block' }}>
-                      <input type="checkbox" checked={extrasSelecionados.some((e) => e.nome === a.nome)} onChange={() => toggleExtra(a)} />
-                      {' '}{a.nome} — R$ {Number(a.preco).toFixed(2)}
+            {produto && produto.tipo === 'sabor_unico' && (
+              <div className="opcoes-grid" style={{ marginBottom: 12 }}>
+                {TAMANHOS.filter((t) => produto[`preco_${t.chave}`]).map((t) => (
+                  <label key={t.chave} className={`opcao-card ${tamanho === t.chave ? 'selecionada' : ''}`}>
+                    <input type="radio" checked={tamanho === t.chave} onChange={() => setTamanho(t.chave)} />
+                    {t.rotulo} (R$ {Number(produto[`preco_${t.chave}`]).toFixed(2)})
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {produto && produto.tipo === 'personalizavel' && detalhe && (
+              <div style={{ marginBottom: 12 }}>
+                <label className="campo-label">Tamanho:</label>
+                <div className="opcoes-grid" style={{ marginBottom: 12 }}>
+                  {TAMANHOS.filter((t) => produto[`preco_${t.chave}`]).map((t) => (
+                    <label key={t.chave} className={`opcao-card ${tamanho === t.chave ? 'selecionada' : ''}`}>
+                      <input
+                        type="radio"
+                        checked={tamanho === t.chave}
+                        onChange={() => {
+                          setTamanho(t.chave);
+                          setSaboresSelecionados([]);
+                        }}
+                      />
+                      {t.rotulo}
                     </label>
                   ))}
                 </div>
-              )}
-              <textarea placeholder="Observações" value={observacoes} onChange={(e) => setObservacoes(e.target.value)} style={{ width: '100%', marginTop: 8 }} />
-              <div style={{ marginTop: 8 }}>
-                Quantidade: <input type="number" min={1} value={quantidade} onChange={(e) => setQuantidade(Number(e.target.value))} style={{ width: 60 }} />
+
+                <label className="campo-label">
+                  Escolha até {detalhe[`max_sabores_${tamanho}`] ?? '—'} sabores:
+                </label>
+                <div className="opcoes-grid">
+                  {(detalhe.sabores_permitidos ?? []).map((saborId: number) => {
+                    const sabor = cardapio?.find((p: any) => p.id === saborId);
+                    if (!sabor) return null;
+                    return (
+                      <label
+                        key={saborId}
+                        className={`opcao-card ${saboresSelecionados.includes(saborId) ? 'selecionada' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={saboresSelecionados.includes(saborId)}
+                          onChange={() => toggleSabor(saborId)}
+                        />
+                        {sabor.nome}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-              <button onClick={handleAdicionarItemNaLista} style={{ marginTop: 8 }}>+ Adicionar item à lista abaixo</button>
-            </>
-          )}
+            )}
 
-          <h2>Passo 4 — Itens prontos para enviar</h2>
-          {itens.length === 0 && <p>Nenhum item montado ainda.</p>}
-          <ul>
-            {itens.map((i, idx) => (
-              <li key={idx}>
-                {i.quantidade}x {i.nome} {i.tamanho !== '-' && `(${i.tamanho})`}
-                {i.extras.length > 0 && ` + ${i.extras.join(', ')}`}
-                {' — R$ '}{(i.precoUnitario * i.quantidade).toFixed(2)}
-                <button onClick={() => removerItemDaLista(idx)} style={{ marginLeft: 8 }}>Remover</button>
-              </li>
-            ))}
-          </ul>
-          <p><strong>Subtotal destes itens: R$ {subtotalNovosItens.toFixed(2)}</strong></p>
+            {produto && produto.tipo === 'combo' && detalhe && (
+              <div style={{ marginBottom: 12 }}>
+                <strong>Combo: R$ {Number(produto.preco_combo ?? 0).toFixed(2)}</strong>
+                {(detalhe.combo_slots ?? []).map((slot: any, slotIndex: number) => (
+                  <div key={slotIndex} style={{ marginTop: 8 }}>
+                    <label className="campo-label">{slot.rotulo || nomeCategoria(slot.categoria_id)}</label>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {Array.from({ length: slot.quantidade }).map((_, pos) => (
+                        <select
+                          key={pos}
+                          value={escolhasCombo[slotIndex]?.[pos] ?? ''}
+                          onChange={(e) => atualizarEscolhaCombo(slotIndex, pos, e.target.value)}
+                        >
+                          <option value="">Opção {pos + 1}</option>
+                          {cardapio
+                            ?.filter((p: any) => p.categoria_id === slot.categoria_id && p.tipo !== 'combo')
+                            .map((p: any) => (
+                              <option key={p.id} value={p.id}>
+                                {p.nome}
+                              </option>
+                            ))}
+                        </select>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
-          {erro && <p style={{ color: 'red' }}>{erro}</p>}
-          {sucesso && <p style={{ color: 'green' }}>{sucesso}</p>}
+            {produto && (
+              <>
+                {(adicionais?.length ?? 0) > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <label className="campo-label">Adicionais:</label>
+                    <div className="opcoes-grid">
+                      {adicionais?.map((a: any) => (
+                        <label
+                          key={a.id}
+                          className={`opcao-card ${extrasSelecionados.some((e) => e.nome === a.nome) ? 'selecionada' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={extrasSelecionados.some((e) => e.nome === a.nome)}
+                            onChange={() => toggleExtra(a)}
+                          />
+                          {a.nome} (+R$ {Number(a.preco).toFixed(2)})
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-          <button onClick={handleConfirmarComanda} disabled={itens.length === 0} style={{ padding: '8px 16px', fontWeight: 'bold' }}>
-            {comandaAlvo === null ? 'Confirmar: Abrir Nova Comanda' : 'Confirmar: Adicionar Itens à Comanda Selecionada'}
-          </button>
+                <textarea
+                  placeholder="Observações do item (ex: sem cebola)..."
+                  value={observacoes}
+                  onChange={(e) => setObservacoes(e.target.value)}
+                  style={{ width: '100%', marginTop: 12 }}
+                />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                  <div className="stepper-qtd">
+                    <button onClick={() => setQuantidade(Math.max(1, quantidade - 1))}>-</button>
+                    <span>{quantidade}</span>
+                    <button onClick={() => setQuantidade(quantidade + 1)}>+</button>
+                  </div>
+
+                  <button onClick={handleAdicionarItemNaLista}>+ Inserir na Lista</button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* PASSO 4: RESUMO DOS ITENS A ENVIAR */}
+          <div className="secao-checkout">
+            <h3>Passo 4 — Resumo dos Novos Itens</h3>
+            {itens.length === 0 && <p className="subtext">Nenhum item adicionado à lista ainda.</p>}
+
+            <ul style={{ listStyle: 'none', paddingLeft: 0, marginBottom: 16 }}>
+              {itens.map((i, idx) => (
+                <li
+                  key={idx}
+                  className="card-simples"
+                  style={{ padding: 12, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <div>
+                    <strong>{i.quantidade}x {i.nome}</strong> {i.tamanho !== '-' && `(${i.tamanho})`}
+                    {i.extras.length > 0 && <div className="subtext">+ {i.extras.join(', ')}</div>}
+                    {i.observacoes && <div className="subtext" style={{ color: 'var(--danger)' }}>Obs: {i.observacoes}</div>}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <strong>R$ {(i.precoUnitario * i.quantidade).toFixed(2)}</strong>
+                    <button onClick={() => removerItemDaLista(idx)} className="btn-link" style={{ color: 'var(--danger)' }}>
+                      Remover
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {itens.length > 0 && (
+              <div className="resumo-linha total" style={{ marginBottom: 16 }}>
+                <span>Subtotal destes itens:</span>
+                <span>R$ {subtotalNovosItens.toFixed(2)}</span>
+              </div>
+            )}
+
+            {erro && <div className="mensagem-erro-box" style={{ marginBottom: 12, padding: 10 }}>{erro}</div>}
+            {sucesso && <div className="mensagem-sucesso-box" style={{ marginBottom: 12, padding: 10 }}>{sucesso}</div>}
+
+            <button onClick={handleConfirmarComanda} disabled={itens.length === 0} className="cta-fixo">
+              {comandaAlvo === null ? '✓ Confirmar e Abrir Nova Comanda' : '✓ Enviar Itens para a Comanda Selecionada'}
+            </button>
+          </div>
         </>
       )}
     </div>

@@ -1148,13 +1148,17 @@ router.put('/pedidos/:id/recusar-pagamento', verificarAdmin, async (req, res) =>
   }
 });
 
+// ========== COMANDAS (routes.ts) ========== 
+
 router.get('/comandas', verificarEquipe, async (req, res) => {
   const { mesa_id } = req.query;
   try {
     const resultado = await pool.query(
-      `SELECT id, comanda_nome, total, status, criado_em FROM pedidos
-       WHERE mesa_id = $1 AND tipo = 'presencial' AND status NOT IN ('finalizado','cancelado')
-       ORDER BY criado_em`,
+      `SELECT p.id, p.comanda_nome, p.total, p.status, p.criado_em, p.garcom_username, p.gorjeta_valor,
+              (SELECT json_agg(i) FROM itens_pedido i WHERE i.pedido_id = p.id AND i.status = 'ativo') AS itens
+       FROM pedidos p
+       WHERE p.mesa_id = $1 AND p.tipo = 'presencial' AND p.status NOT IN ('finalizado','cancelado')
+       ORDER BY p.criado_em`,
       [mesa_id]
     );
     res.json(resultado.rows);
