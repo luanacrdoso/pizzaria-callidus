@@ -47,6 +47,7 @@ import { MotoboyMinhasEntregasPage } from './pages/MotoboyMinhasEntregasPage';
 import { MotoboyDashboardPage } from './pages/MotoboyDashboardPage';
 import { PedidosAtivosPage } from './pages/PedidosAtivosPage';
 import { LoginPage } from './pages/LoginPage';
+import { GarcomFecharComandaPage } from './pages/GarcomFecharComandaPage';
 
 function App() {
   return (
@@ -142,6 +143,7 @@ function App() {
         <Route index element={<Navigate to="comandas" replace />} />
         <Route path="comandas" element={<GarcomComandasAtivasPage />} />
         <Route path="montar" element={<GarcomComandasPage />} />
+        <Route path="fechar/:pedidoId" element={<GarcomFecharComandaPage />} />
         <Route path="servir" element={<GarcomServirPage />} />
         <Route path="dashboard" element={<GarcomDashboardPage />} />
         <Route path="perfil" element={<FuncionarioPerfilPage />} />
