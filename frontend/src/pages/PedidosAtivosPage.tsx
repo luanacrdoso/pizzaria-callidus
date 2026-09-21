@@ -11,6 +11,8 @@ function headerAutenticacao(): HeadersInit {
 }
 
 export function PedidosAtivosPage({ destaque, permitirAtender }: { destaque?: 'retirada' | 'presencial'; permitirAtender?: boolean }) {
+  const ehAdmin = !!localStorage.getItem("admin_token");
+  const STATUS_OPCOES = ["recebido", "preparo", "pronto", "entregue", "finalizado", "cancelado"];
   const queryClient = useQueryClient();
   const { data: pedidos, isLoading, isError } = useQuery({
     queryKey: ['pedidos-ativos'], queryFn: buscarPedidosAtivos, refetchInterval: 8000,
@@ -24,6 +26,13 @@ export function PedidosAtivosPage({ destaque, permitirAtender }: { destaque?: 'r
     onSuccess: invalidar,
   });
 
+  const mutationStatusAdmin = useMutation({
+  mutationFn: ({ id, status }: { id: number; status: string }) =>
+    fetch(`${API_URL}/pedidos/${id}/status`, {
+      method: "PUT", headers: { "Content-Type": "application/json", ...headerAutenticacao() }, body: JSON.stringify({ status }),
+    }),
+  onSuccess: invalidar,
+});
   const mutationAtender = useMutation({
     mutationFn: ({ id, mesaId }: { id: number; mesaId: string }) =>
       fetch(`${API_URL}/pedidos/${id}/atender`, {
@@ -54,12 +63,26 @@ export function PedidosAtivosPage({ destaque, permitirAtender }: { destaque?: 'r
               {p.comanda_nome && <> — Comanda: {p.comanda_nome}</>}
               {p.mesa_id && <> — Mesa {p.mesa_id}</>}
               {p.tipo === 'presencial' && !p.mesa_id && <> — Mesa: a definir</>}
+
+              {ehAdmin && (
+                <div style={{ marginTop: 8 }}>
+                  <span style={{ fontWeight: 'bold' }}>Alterar status:</span>
+                  {STATUS_OPCOES.map((status) => (
+                    <button key={status} onClick={() => mutationStatusAdmin.mutate({ id: p.id, status })} disabled={p.status === status} style={{ marginLeft: 4 }}>
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <p>Itens:</p>     
+
               <ul>
                 {(p.itens ?? []).filter((i: any) => i.status === 'ativo').map((i: any) => (
                   <li key={i.id}>{i.quantidade}x {i.nome} ({i.tamanho})</li>
                 ))}
               </ul>
-              <p>Total: R$ {p.total}</p>
+              <p>Total: R\$ {p.total}</p>
 
               {precisaAtender && (
                 <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
