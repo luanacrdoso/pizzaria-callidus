@@ -1,9 +1,8 @@
-export interface Mesa {
-  id: number;
-  numero: number;
-  nome: string | null;
-  capacidade: number;
-  status: string;
+export interface Mesa { 
+  id: number; 
+  numero: number; // Agora o número faz parte da interface principal
+  capacidade: number; 
+  status: string; 
 }
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -30,15 +29,19 @@ export async function criarMesa(dados: { numero: number; capacidade: number }): 
 }
 
 export async function editarMesa(mesa: Mesa): Promise<Mesa> {
-  const resposta = await fetch(`${API_URL}/mesas/${mesa.id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...headerAutenticacao() },
-    body: JSON.stringify({ capacidade: mesa.capacidade, status: mesa.status, nome: mesa.nome })
+  const r = await fetch(`${API_URL}/mesas/${mesa.id}`, {
+    method: "PUT", 
+    headers: { "Content-Type": "application/json", ...headerAutenticacao() },
+    // Enviamos o número, capacidade e status. O campo 'nome' foi removido [1].
+    body: JSON.stringify({ 
+      numero: mesa.numero, 
+      capacidade: mesa.capacidade, 
+      status: mesa.status 
+    })
   });
-  if (!resposta.ok) throw new Error('Erro ao editar mesa.');
-  return resposta.json();
+  if (!r.ok) throw new Error("Erro ao editar mesa."); 
+  return r.json();
 }
-
 export async function excluirMesa(id: number): Promise<void> {
   const resposta = await fetch(`${API_URL}/mesas/${id}`, { method: 'DELETE', headers: headerAutenticacao() });
   if (!resposta.ok) throw new Error('Erro ao excluir mesa.');
