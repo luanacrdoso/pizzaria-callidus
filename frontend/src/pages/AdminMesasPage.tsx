@@ -18,10 +18,15 @@ export function AdminMesasPage() {
     mutationCriar.mutate({ numero, capacidade: 4 });
   };
 
-  // NOVA FUNÇÃO: Trata a edição do número da mesa (conforme solicitado na Issue #6)
   const handleEditarNumero = (mesa: Mesa, novoNumero: number) => {
     if (novoNumero === mesa.numero) return;
     mutationEditar.mutate({ ...mesa, numero: novoNumero });
+  };
+
+  // NOVA FUNÇÃO (Issue #8+9): Alteração manual do status da mesa
+  const handleAlterarStatus = (mesa: Mesa, novoStatus: string) => {
+    if (novoStatus === mesa.status) return;
+    mutationEditar.mutate({ ...mesa, status: novoStatus });
   };
 
   const handleAjustarCadeiras = (mesa: Mesa, delta: number) => {
@@ -44,7 +49,6 @@ export function AdminMesasPage() {
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {mesas?.map((mesa) => (
           <li key={mesa.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            {/* ALTERAÇÃO: Número agora é um input editável e o input de apelido foi removido */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <strong>Mesa</strong>
               <input
@@ -55,7 +59,17 @@ export function AdminMesasPage() {
               />
             </div>
 
-            <span>{mesa.capacidade} lugares · {mesa.status}</span>
+            <span>{mesa.capacidade} lugares · Status:</span>
+
+            {/* SELETOR DE STATUS MANUAL */}
+            <select
+              value={mesa.status}
+              onChange={(e) => handleAlterarStatus(mesa, e.target.value)}
+              style={{ padding: '2px 6px', borderRadius: 4 }}
+            >
+              <option value="livre">livre</option>
+              <option value="ocupada">ocupada</option>
+            </select>
             
             <span>cadeiras:</span>
             <button onClick={() => handleAjustarCadeiras(mesa, 1)}>+</button>

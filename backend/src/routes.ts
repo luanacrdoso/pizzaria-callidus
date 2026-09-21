@@ -338,22 +338,20 @@ router.post('/mesas', verificarEquipe, async (req, res) => {
 });
 
 router.put('/mesas/:id', verificarEquipe, async (req, res) => {
-  const { numero, capacidade, status } = req.body;
+  const { capacidade, status, nome } = req.body;
+
   try {
     const resultado = await pool.query(
-      "UPDATE mesas SET numero = COALESCE($1, numero), capacidade = COALESCE($2, capacidade), status = COALESCE($3, status) WHERE id = $4 RETURNING *",
-      [numero, capacidade, status, req.params.id]
+      'UPDATE mesas SET capacidade = $1, status = $2, nome = $3 WHERE id = $4 RETURNING *',
+      [capacidade, status, nome ?? null, req.params.id]
     );
-    if (resultado.rows.length === 0) return res.status(404).json({ mensagem: "Mesa não encontrada." });
-    
-    res.json(resultado.rows);
-  } catch (erro: any) {
-    // Trata o erro de duplicidade de número (Constraint UNIQUE)
-    if (erro.code === "23505") {
-      return res.status(409).json({ mensagem: "Já existe uma mesa com esse número." });
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensagem: 'Mesa não encontrada.' });
     }
-    console.error(erro); 
-    res.status(500).json({ mensagem: "Erro ao editar mesa." });
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error(erro);
+    res.status(500).json({ mensagem: 'Erro ao editar mesa.' });
   }
 });
 
@@ -956,10 +954,12 @@ router.post('/pedidos', async (req, res) => {
          endereco_entrega, cupom_codigo, valor_desconto, status, comanda_nome, garcom_username, gorjeta_valor, cpf_nota)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
        RETURNING *`,
-      [tipo, cliente_id || null, cliente_nome, cliente_telefone, mesa_id || null, subtotal,
-       taxa_entrega || 0, total, endereco_entrega, cupom_codigo || null, valor_desconto || 0, statusInicial,
+      [tipo, cliente_id || null, cliente_nome || null, cliente_telefone || null, mesa_id || null, subtotal,
+       taxa_entrega || 0, total, endereco_entrega || null, cupom_codigo || null, valor_desconto || 0, statusInicial,
        comanda_nome || null, garcom_username || null, gorjeta_valor || 0, cpf_nota || null]
     );
+
+    // CORREÇÃO: Acessa o objeto individual com o índice [0]
     const pedido = pedidoResult.rows[0];
 
     for (const item of itens) {
@@ -974,14 +974,20 @@ router.post('/pedidos', async (req, res) => {
     await client.query(
       `INSERT INTO pedido_pagamentos (pedido_id, nome_pagador, valor_pago, forma_pagamento)
        VALUES ($1,$2,$3,$4)`,
-      [pedido.id, cliente_nome, total, forma_pagamento]
+      [pedido.id, cliente_nome || comanda_nome || 'Cliente', total, forma_pagamento || 'A definir']
     );
 
     if (cupom_codigo) {
       await client.query('UPDATE cupons SET usos_atuais = usos_atuais + 1 WHERE codigo = $1', [cupom_codigo.toUpperCase()]);
     }
 
+    // ISSUE #8+9: Ocupa a mesa automaticamente ao abrir comanda presencial
+    if (tipo === 'presencial' && mesa_id) {
+      await client.query("UPDATE mesas SET status = 'ocupada' WHERE id = $1", [mesa_id]);
+    }
+
     await client.query('COMMIT');
+
     res.status(201).json(pedido);
   } catch (erro) {
     await client.query('ROLLBACK');
@@ -1189,16 +1195,50 @@ router.put('/pedidos/:id/atender', verificarCargo('garcom'), async (req, res) =>
 });
 
 router.post('/pedidos/:id/pagamentos', verificarEquipe, async (req, res) => {
+  const { id: pedido_id } = req.params;
   const { nome_pagador, valor_pago, forma_pagamento } = req.body;
+
+  // Validação básica do valor pago
+  if (valor_pago === undefined || valor_pago === null || Number(valor_pago) <= 0) {
+    return res.status(400).json({ mensagem: 'O valor_pago é obrigatório e deve ser maior que zero.' });
+  }
+
+  const client = await pool.connect();
+
   try {
-    const resultado = await pool.query(
-      'INSERT INTO pedido_pagamentos (pedido_id, nome_pagador, valor_pago, forma_pagamento) VALUES ($1,$2,$3,$4) RETURNING *',
-      [req.params.id, nome_pagador, valor_pago, forma_pagamento]
+    await client.query('BEGIN');
+
+    // 1. Verifica se o pedido existe
+    const pedidoExiste = await client.query('SELECT id FROM pedidos WHERE id = $1', [pedido_id]);
+    if (pedidoExiste.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ mensagem: 'Pedido não encontrado.' });
+    }
+
+    // 2. Insere o registro de pagamento
+    const resultado = await client.query(
+      `INSERT INTO pedido_pagamentos (pedido_id, nome_pagador, valor_pago, forma_pagamento) 
+       VALUES ($1, $2, $3, $4) 
+       RETURNING *`,
+      [
+        pedido_id,
+        nome_pagador ? nome_pagador.trim() : 'Cliente',
+        valor_pago,
+        forma_pagamento || 'Dinheiro'
+      ]
     );
-    res.status(201).json(resultado.rows[0]);
+
+    // Retorna o objeto inserido individualmente com status 201
+    const novoPagamento = resultado.rows[0];
+
+    await client.query('COMMIT');
+    res.status(201).json(novoPagamento);
   } catch (erro) {
+    await client.query('ROLLBACK');
     console.error(erro);
     res.status(500).json({ mensagem: 'Erro ao registrar pagamento.' });
+  } finally {
+    client.release();
   }
 });
 
@@ -1259,7 +1299,10 @@ router.put('/pedidos/:id/itens/:itemId/cancelar', verificarEquipe, async (req, r
 router.put('/pedidos/:id/status', verificarAutenticado, async (req, res) => {
   const usuario = (req as any).usuario;
   const { status } = req.body;
-  const validos = ['aguardando_pagamento', 'recebido', 'preparo', 'pronto', 'entregue', 'finalizado', 'cancelado'];
+  const validos = [
+    'aguardando_pagamento', 'recebido', 'preparo', 'pronto', 'entregue', 
+    'aguardando_pagamento_comanda', 'finalizado', 'cancelado'
+  ];
 
   if (usuario.tipo === 'cliente') {
     return res.status(403).json({ mensagem: 'Acesso restrito à equipe da pizzaria.' });
@@ -1271,15 +1314,47 @@ router.put('/pedidos/:id/status', verificarAutenticado, async (req, res) => {
     return res.status(403).json({ mensagem: 'Cozinha só pode alterar o status para preparo ou pronto.' });
   }
 
+  const client = await pool.connect();
+
   try {
-    const resultado = await pool.query('UPDATE pedidos SET status = $1, atualizado_em = now() WHERE id = $2 RETURNING *', [status, req.params.id]);
+    await client.query('BEGIN');
+
+    const resultado = await client.query(
+      'UPDATE pedidos SET status = $1, atualizado_em = now() WHERE id = $2 RETURNING *',
+      [status, req.params.id]
+    );
+
     if (resultado.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ mensagem: 'Pedido não encontrado.' });
     }
-    res.json(resultado.rows[0]);
+
+    // CORREÇÃO: Pega o objeto individual da posição [0]
+    const pedidoAtualizado = resultado.rows[0];
+
+    // Liberação automática de mesa se for finalizado ou cancelado
+    if ((status === 'finalizado' || status === 'cancelado') && pedidoAtualizado.mesa_id) {
+      const outrasComandasAbertas = await client.query(
+        `SELECT id FROM pedidos 
+         WHERE mesa_id = $1 
+           AND tipo = 'presencial' 
+           AND status NOT IN ('finalizado', 'cancelado')`,
+        [pedidoAtualizado.mesa_id]
+      );
+
+      if (outrasComandasAbertas.rows.length === 0) {
+        await client.query("UPDATE mesas SET status = 'livre' WHERE id = $1", [pedidoAtualizado.mesa_id]);
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json(pedidoAtualizado);
   } catch (erro) {
+    await client.query('ROLLBACK');
     console.error(erro);
     res.status(500).json({ mensagem: 'Erro ao atualizar status.' });
+  } finally {
+    client.release();
   }
 });
 
