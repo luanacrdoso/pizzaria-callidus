@@ -1,63 +1,132 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { cadastrarCliente } from '../api/clienteAuth';
+import { useNavigate } from 'react-router-dom';
+import { buscarEnderecoPorCep } from '../api/cep';
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 export function ClienteCadastroPage() {
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({
-    username: '', senha: '', nome: '', telefone: '', email: '', cpf: '',
-    cep: '', endereco: '', numero: '', bairro: '', cidade: '', estado: ''
-  });
+  const [nome, setNome] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [username, setUsername] = useState("");
+  const [senha, setSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
 
-  const [erro, setErro] = useState('');
+  const [cep, setCep] = useState("");
+  const [endereco, setEndereco] = useState("");
+  const [numero, setNumero] = useState("");
+  const [bairro, setBairro] = useState("");
+  const [cidade, setCidade] = useState("");
+  const [estado, setEstado] = useState("");
 
-  const campo = (chave: keyof typeof form) => ({
-    value: form[chave],
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm({ ...form, [chave]: e.target.value })
-  });
+  const [erro, setErro] = useState("");
+  const [carregando, setCarregando] = useState(false);
+
+  const handleBuscarCep = async (valorCep: string) => {
+    setCep(valorCep);
+    const cepLimpo = valorCep.replace(/\D/g, "");
+    if (cepLimpo.length === 8) {
+      const dados = await buscarEnderecoPorCep(cepLimpo);
+      if (dados) {
+        setEndereco(dados.endereco || "");
+        setBairro(dados.bairro || "");
+        setCidade(dados.cidade || "");
+        setEstado(dados.estado || "");
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErro('');
+    setErro("");
 
+    if (senha.length < 6) {
+      setErro("A senha precisa ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    if (senha !== confirmarSenha) {
+      setErro("As senhas não coincidem.");
+      return;
+    }
+
+    setCarregando(true);
     try {
-      await cadastrarCliente(form);
-      navigate('/login');
-    } catch (err: unknown) {
-      setErro(err instanceof Error ? err.message : 'Erro ao criar conta.');
+      const resposta = await fetch(`${API_URL}/clientes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome,
+          telefone,
+          cpf: cpf || null,
+          username,
+          senha,
+          cep,
+          endereco,
+          numero,
+          bairro,
+          cidade,
+          estado
+        }),
+      });
+
+      if (!resposta.ok) {
+        const err = await resposta.json();
+        setErro(err.mensagem || "Erro ao cadastrar cliente.");
+        return;
+      }
+
+      navigate("/login");
+    } catch (err: any) {
+      setErro(err.message || "Erro na conexão com o servidor.");
+    } finally {
+      setCarregando(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: 360, margin: "40px auto", padding: 16 }}>
-      <h1>Criar conta</h1>
+    <div style={{ maxWidth: 400, margin: "0 auto", padding: 24 }}>
+      <h1>Criar Conta de Cliente</h1>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <input placeholder="Nome completo *" value={nome} onChange={(e) => setNome(e.target.value)} required />
+        <input placeholder="Usuário *" value={username} onChange={(e) => setUsername(e.target.value)} required />
+        <input placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+        <input placeholder="CPF (opcional)" value={cpf} onChange={(e) => setCpf(e.target.value)} />
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <input placeholder="Nome completo" {...campo('nome')} required />
-        <input placeholder="Usuário" {...campo('username')} required />
-        <input placeholder="E-mail" type="email" {...campo('email')} />
-        <input placeholder="Telefone" {...campo('telefone')} />
-        <input placeholder="CPF" {...campo('cpf')} />
-        <input placeholder="Senha" type="password" {...campo('senha')} required />
+        <input
+          type="password"
+          placeholder="Senha *"
+          value={senha}
+          onChange={(e) => setSenha(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Confirme a senha *"
+          value={confirmarSenha}
+          onChange={(e) => setConfirmarSenha(e.target.value)}
+          required
+        />
 
-        <p style={{ marginBottom: 0, fontWeight: "bold" }}>
-          Endereço (opcional, facilita nos pedidos)
-        </p>
+        <h3>Endereço</h3>
+        <input placeholder="CEP" value={cep} onChange={(e) => handleBuscarCep(e.target.value)} maxLength={9} />
+        <input placeholder="Rua / Endereço" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
+        <input placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value)} />
+        <input placeholder="Bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
+        <div style={{ display: "flex", gap: 8 }}>
+          <input placeholder="Cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} style={{ flex: 1 }} />
+          <input placeholder="UF" value={estado} onChange={(e) => setEstado(e.target.value)} style={{ width: 60 }} maxLength={2} />
+        </div>
 
-        <input placeholder="CEP" {...campo('cep')} />
-        <input placeholder="Endereço" {...campo('endereco')} />
-        <input placeholder="Número" {...campo('numero')} />
-        <input placeholder="Bairro" {...campo('bairro')} />
-        <input placeholder="Cidade" {...campo('cidade')} />
-        <input placeholder="Estado (UF)" maxLength={2} {...campo('estado')} />
+        {erro && <p style={{ color: "red", marginTop: 4 }}>{erro}</p>}
 
-        {erro && <p style={{ color: "red" }}>{erro}</p>}
-        <button type="submit">Criar conta</button>
+        <button type="submit" disabled={carregando} style={{ marginTop: 10 }}>
+          {carregando ? "Cadastrando..." : "Cadastrar"}
+        </button>
       </form>
-
-      <p><Link to="/login">Já tenho conta</Link></p>
     </div>
   );
 }
+
