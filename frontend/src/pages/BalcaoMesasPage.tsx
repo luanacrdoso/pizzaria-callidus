@@ -14,6 +14,12 @@ export function BalcaoMesasPage() {
     const numero = (mesas?.length ?? 0) + 1;
     mutationCriar.mutate({ numero, capacidade: 4 });
   };
+
+  // NOVA FUNÇÃO: Trata a edição do número da mesa
+  const handleEditarNumero = (mesa: Mesa, novoNumero: number) => {
+    if (novoNumero === mesa.numero) return; // Não faz nada se o número não mudou
+    mutationEditar.mutate({ ...mesa, numero: novoNumero });
+  };
  
   const handleStatus = (mesa: Mesa, novoStatus: string) => {
     mutationEditar.mutate({ ...mesa, status: novoStatus });
@@ -31,14 +37,25 @@ export function BalcaoMesasPage() {
       <ul style={{ listStyle: "none", padding: 0 }}>
         {mesas?.map((mesa) => (
           <li key={mesa.id} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-            <strong>Mesa {mesa.numero}</strong>
-            <span>{mesa.nome ?? ""}</span>
+            {/* ALTERAÇÃO: Número agora é um input editável e o apelido foi removido */}
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <strong>Mesa</strong>
+              <input 
+                type="number" 
+                defaultValue={mesa.numero} 
+                onBlur={(e) => handleEditarNumero(mesa, Number(e.target.value))}
+                style={{ width: 60, fontWeight: "bold" }}
+              />
+            </div>
+
             <span>{mesa.capacidade} lugares</span>
+
             <select value={mesa.status} onChange={(e) => handleStatus(mesa, e.target.value)}>
               <option value="livre">Livre</option>
               <option value="ocupada">Ocupada</option>
             </select>
-            <button onClick={() => mutationExcluir.mutate(mesa.id)}>Excluir</button>
+
+            <button onClick={() => mutationExcluir.mutate(mesa.id)} className="btn-perigo">Excluir</button>
           </li>
         ))}
       </ul>

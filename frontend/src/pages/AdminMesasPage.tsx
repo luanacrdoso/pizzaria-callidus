@@ -18,6 +18,12 @@ export function AdminMesasPage() {
     mutationCriar.mutate({ numero, capacidade: 4 });
   };
 
+  // NOVA FUNÇÃO: Trata a edição do número da mesa (conforme solicitado na Issue #6)
+  const handleEditarNumero = (mesa: Mesa, novoNumero: number) => {
+    if (novoNumero === mesa.numero) return;
+    mutationEditar.mutate({ ...mesa, numero: novoNumero });
+  };
+
   const handleAjustarCadeiras = (mesa: Mesa, delta: number) => {
     const novaCapacidade = Math.max(1, mesa.capacidade + delta);
     mutationEditar.mutate({ ...mesa, capacidade: novaCapacidade });
@@ -38,24 +44,23 @@ export function AdminMesasPage() {
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {mesas?.map((mesa) => (
           <li key={mesa.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <strong>Mesa {mesa.numero}</strong>
-            <input
-              key={mesa.id}
-              defaultValue={mesa.nome ?? ''}
-              placeholder="Apelido (opcional)"
-              onBlur={(e) => {
-                const novoNome = e.target.value.trim() || null;
-                if (novoNome !== mesa.nome) {
-                  mutationEditar.mutate({ ...mesa, nome: novoNome });
-                }
-              }}
-              style={{ width: 140 }}
-            />
+            {/* ALTERAÇÃO: Número agora é um input editável e o input de apelido foi removido */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <strong>Mesa</strong>
+              <input
+                type="number"
+                defaultValue={mesa.numero}
+                onBlur={(e) => handleEditarNumero(mesa, Number(e.target.value))}
+                style={{ width: 60, fontWeight: 'bold' }}
+              />
+            </div>
+
             <span>{mesa.capacidade} lugares · {mesa.status}</span>
+            
             <span>cadeiras:</span>
             <button onClick={() => handleAjustarCadeiras(mesa, 1)}>+</button>
             <button onClick={() => handleAjustarCadeiras(mesa, -1)}>-</button>
-            <button onClick={() => mutationExcluir.mutate(mesa.id)}>Excluir</button>
+            <button onClick={() => mutationExcluir.mutate(mesa.id)} className="btn-perigo">Excluir</button>
           </li>
         ))}
       </ul>

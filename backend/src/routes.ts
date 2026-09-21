@@ -338,20 +338,22 @@ router.post('/mesas', verificarEquipe, async (req, res) => {
 });
 
 router.put('/mesas/:id', verificarEquipe, async (req, res) => {
-  const { capacidade, status, nome } = req.body;
-
+  const { numero, capacidade, status } = req.body;
   try {
     const resultado = await pool.query(
-      'UPDATE mesas SET capacidade = $1, status = $2, nome = $3 WHERE id = $4 RETURNING *',
-      [capacidade, status, nome ?? null, req.params.id]
+      "UPDATE mesas SET numero = COALESCE($1, numero), capacidade = COALESCE($2, capacidade), status = COALESCE($3, status) WHERE id = $4 RETURNING *",
+      [numero, capacidade, status, req.params.id]
     );
-    if (resultado.rows.length === 0) {
-      return res.status(404).json({ mensagem: 'Mesa não encontrada.' });
+    if (resultado.rows.length === 0) return res.status(404).json({ mensagem: "Mesa não encontrada." });
+    
+    res.json(resultado.rows);
+  } catch (erro: any) {
+    // Trata o erro de duplicidade de número (Constraint UNIQUE)
+    if (erro.code === "23505") {
+      return res.status(409).json({ mensagem: "Já existe uma mesa com esse número." });
     }
-    res.json(resultado.rows[0]);
-  } catch (erro) {
-    console.error(erro);
-    res.status(500).json({ mensagem: 'Erro ao editar mesa.' });
+    console.error(erro); 
+    res.status(500).json({ mensagem: "Erro ao editar mesa." });
   }
 });
 
