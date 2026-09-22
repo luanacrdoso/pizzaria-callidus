@@ -60,14 +60,16 @@ export function AdminConfigPage() {
 
         <fieldset>
           <legend>Cores modo claro</legend>
-          <label>Primária <input type="color" value={form.cor_primaria_clara} onChange={(e) => atualizarCampo('cor_primaria_clara', e.target.value)} /></label>
-          <label>Secundária <input type="color" value={form.cor_secundaria_clara} onChange={(e) => atualizarCampo('cor_secundaria_clara', e.target.value)} /></label>
+          <label>Fundo <input type="color" value={form.cor_fundo_clara} onChange={(e) => atualizarCampo('cor_fundo_clara', e.target.value)} /></label>
+          <label>Botão <input type="color" value={form.cor_botao_clara} onChange={(e) => atualizarCampo('cor_botao_clara', e.target.value)} /></label>
+          <label>Texto <input type="color" value={form.cor_texto_clara} onChange={(e) => atualizarCampo('cor_texto_clara', e.target.value)} /></label>
         </fieldset>
 
         <fieldset>
           <legend>Cores modo escuro</legend>
-          <label>Primária <input type="color" value={form.cor_primaria_escura} onChange={(e) => atualizarCampo('cor_primaria_escura', e.target.value)} /></label>
-          <label>Secundária <input type="color" value={form.cor_secundaria_escura} onChange={(e) => atualizarCampo('cor_secundaria_escura', e.target.value)} /></label>
+          <label>Fundo <input type="color" value={form.cor_fundo_escura} onChange={(e) => atualizarCampo('cor_fundo_escura', e.target.value)} /></label>
+          <label>Botão <input type="color" value={form.cor_botao_escura} onChange={(e) => atualizarCampo('cor_botao_escura', e.target.value)} /></label>
+          <label>Texto <input type="color" value={form.cor_texto_escura} onChange={(e) => atualizarCampo('cor_texto_escura', e.target.value)} /></label>
         </fieldset>
 
         <label>Dias de Funcionamento
