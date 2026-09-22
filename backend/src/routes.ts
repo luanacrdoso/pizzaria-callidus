@@ -78,7 +78,17 @@ router.get('/pizzas/:id', async (req, res) => {
     if (resultado.rows.length === 0) {
       return res.status(404).json({ mensagem: 'Item não encontrado.' });
     }
-    res.json(resultado.rows[0]);
+    const pizza = resultado.rows[0];
+
+    if (pizza.tipo === 'personalizavel') {
+      const sabores = await pool.query(
+        'SELECT sabor_id FROM pizza_sabores WHERE pizza_id = $1',
+        [pizza.id]
+      );
+      pizza.sabores_permitidos = sabores.rows.map((r) => r.sabor_id);
+    }
+
+    res.json(pizza);
   } catch (erro) {
     console.error(erro);
     res.status(500).json({ mensagem: 'Erro ao buscar item.' });
@@ -89,15 +99,18 @@ router.post('/pizzas', async (req, res) => {
   const {
     nome, descricao, categoria, imagem_url,
     preco_brotinho, preco_media, preco_grande,
-    tipo, max_sabores_brotinho, max_sabores_media, max_sabores_grande
+    tipo, max_sabores_brotinho, max_sabores_media, max_sabores_grande,
+    sabores_permitidos
   } = req.body;
 
   if (!nome || !categoria || !tipo) {
     return res.status(400).json({ mensagem: 'nome, categoria e tipo são obrigatórios.' });
   }
 
+  const client = await pool.connect();
   try {
-    const resultado = await pool.query(
+    await client.query('BEGIN');
+    const resultado = await client.query(
       `INSERT INTO pizzas
         (nome, descricao, categoria, imagem_url, preco_brotinho, preco_media, preco_grande,
          tipo, max_sabores_brotinho, max_sabores_media, max_sabores_grande)
@@ -106,10 +119,25 @@ router.post('/pizzas', async (req, res) => {
       [nome, descricao, categoria, imagem_url, preco_brotinho, preco_media, preco_grande,
        tipo, max_sabores_brotinho, max_sabores_media, max_sabores_grande]
     );
-    res.status(201).json(resultado.rows[0]);
+    const pizza = resultado.rows[0];
+
+    if (tipo === 'personalizavel' && Array.isArray(sabores_permitidos)) {
+      for (const saborId of sabores_permitidos) {
+        await client.query(
+          'INSERT INTO pizza_sabores (pizza_id, sabor_id) VALUES ($1, $2)',
+          [pizza.id, saborId]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json(pizza);
   } catch (erro) {
+    await client.query('ROLLBACK');
     console.error(erro);
     res.status(500).json({ mensagem: 'Erro ao criar item do cardápio.' });
+  } finally {
+    client.release();
   }
 });
 
@@ -117,11 +145,14 @@ router.put('/pizzas/:id', async (req, res) => {
   const {
     nome, descricao, categoria, imagem_url,
     preco_brotinho, preco_media, preco_grande,
-    tipo, max_sabores_brotinho, max_sabores_media, max_sabores_grande, visivel
+    tipo, max_sabores_brotinho, max_sabores_media, max_sabores_grande, visivel,
+    sabores_permitidos
   } = req.body;
 
+  const client = await pool.connect();
   try {
-    const resultado = await pool.query(
+    await client.query('BEGIN');
+    const resultado = await client.query(
       `UPDATE pizzas SET
         nome = $1, descricao = $2, categoria = $3, imagem_url = $4,
         preco_brotinho = $5, preco_media = $6, preco_grande = $7,
@@ -133,12 +164,29 @@ router.put('/pizzas/:id', async (req, res) => {
        tipo, max_sabores_brotinho, max_sabores_media, max_sabores_grande, visivel, req.params.id]
     );
     if (resultado.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ mensagem: 'Item não encontrado.' });
     }
-    res.json(resultado.rows[0]);
+    const pizza = resultado.rows[0];
+
+    if (tipo === 'personalizavel' && Array.isArray(sabores_permitidos)) {
+      await client.query('DELETE FROM pizza_sabores WHERE pizza_id = $1', [pizza.id]);
+      for (const saborId of sabores_permitidos) {
+        await client.query(
+          'INSERT INTO pizza_sabores (pizza_id, sabor_id) VALUES ($1, $2)',
+          [pizza.id, saborId]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json(pizza);
   } catch (erro) {
+    await client.query('ROLLBACK');
     console.error(erro);
     res.status(500).json({ mensagem: 'Erro ao editar item.' });
+  } finally {
+    client.release();
   }
 });
 

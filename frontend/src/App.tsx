@@ -48,6 +48,7 @@ import { MotoboyDashboardPage } from './pages/MotoboyDashboardPage';
 import { PedidosAtivosPage } from './pages/PedidosAtivosPage';
 import { LoginPage } from './pages/LoginPage';
 import { GarcomFecharComandaPage } from './pages/GarcomFecharComandaPage';
+import { PromocaoDetalhePage } from './pages/PromocaoDetalhePage';
 
 function App() {
   return (
@@ -57,6 +58,7 @@ function App() {
       <Route path="/" element={<ClienteLayout />}>
         <Route index element={<CardapioPublicoPage />} />
         <Route path="produto/:id" element={<DetalheProdutoPage />} />
+        <Route path="promocao/:id" element={<PromocaoDetalhePage />} />
         <Route path="carrinho" element={<CarrinhoPage />} />
         <Route path="checkout" element={<CheckoutPage />} />
         <Route path="pagamento/:pedidoId" element={<PagamentoPage />} />
