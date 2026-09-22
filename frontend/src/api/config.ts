@@ -8,6 +8,12 @@ export interface RestauranteConfig {
   cor_secundaria_clara: string;
   cor_primaria_escura: string;
   cor_secundaria_escura: string;
+  cor_fundo_clara?: string;
+  cor_fundo_escura?: string;
+  cor_botao_clara?: string;
+  cor_botao_escura?: string;
+  cor_texto_clara?: string;
+  cor_texto_escura?: string;
   endereco: string;
   dias_funcionamento: string;
   horario_funcionamento: string;
@@ -32,6 +38,7 @@ export async function atualizarConfig(config: RestauranteConfig): Promise<Restau
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(config)
   });
+
   if (!resposta.ok) throw new Error('Erro ao atualizar configuração.');
   return resposta.json();
 }

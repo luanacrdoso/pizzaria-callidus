@@ -3,11 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { buscarPizzas, criarPizza, editarPizza, excluirPizza, buscarPizzaPorId } from '../api/pizzas';
 import { buscarAdicionais, criarAdicional, excluirAdicional } from '../api/adicionais';
 import { buscarCategorias, criarCategoria, excluirCategoria } from '../api/categorias';
-import { buscarPromocoes, criarPromocao, editarPromocao, excluirPromocao } from '../api/promocoes';
 
 const TIPOS = [
   { valor: 'sabor_unico', rotulo: 'Sabor único (pizza, bebida, item avulso)' },
   { valor: 'personalizavel', rotulo: 'Pizza personalizável (múltiplos sabores)' },
+  { valor: 'combo', rotulo: 'Combo' },
 ];
 
 const vazio = {
@@ -28,21 +28,9 @@ const vazio = {
   combo_slots: [] as { categoria_id: string; quantidade: number; rotulo: string }[],
 };
 
-const promocaoVazia = {
-  id: null as number | null,
-  tipo: 'combo',
-  nome: '',
-  preco_combo: '',
-  pizza_id: '',
-  desconto_tipo: 'percentual',
-  desconto_valor: '',
-  combo_slots: [] as { categoria_id: string; quantidade: number; rotulo: string }[],
-};
-
 export function AdminCardapioPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(vazio);
-  const [promoForm, setPromoForm] = useState(promocaoVazia);
   const [nomeAdicional, setNomeAdicional] = useState('');
   const [precoAdicional, setPrecoAdicional] = useState('');
   const [nomeCategoria, setNomeCategoria] = useState('');
@@ -51,10 +39,8 @@ export function AdminCardapioPage() {
   const { data: pizzas, isLoading, isError } = useQuery({ queryKey: ['pizzas'], queryFn: buscarPizzas });
   const { data: adicionais } = useQuery({ queryKey: ['adicionais'], queryFn: buscarAdicionais });
   const { data: categorias } = useQuery({ queryKey: ['categorias'], queryFn: buscarCategorias });
-  const { data: promocoes } = useQuery({ queryKey: ['promocoes'], queryFn: buscarPromocoes });
 
   const invalidarPizzas = () => queryClient.invalidateQueries({ queryKey: ['pizzas'] });
-  const invalidarPromocoes = () => queryClient.invalidateQueries({ queryKey: ['promocoes'] });
 
   // Mutations
   const mutationCriar = useMutation({
@@ -75,26 +61,6 @@ export function AdminCardapioPage() {
   const mutationToggleVisivel = useMutation({
     mutationFn: editarPizza,
     onSuccess: invalidarPizzas
-  });
-
-  const mutationCriarPromocao = useMutation({
-    mutationFn: criarPromocao,
-    onSuccess: () => { invalidarPromocoes(); limparPromoForm(); }
-  });
-
-  const mutationEditarPromocao = useMutation({
-    mutationFn: editarPromocao,
-    onSuccess: () => { invalidarPromocoes(); limparPromoForm(); }
-  });
-
-  const mutationExcluirPromocao = useMutation({
-    mutationFn: excluirPromocao,
-    onSuccess: invalidarPromocoes
-  });
-
-  const mutationTogglePromocao = useMutation({
-    mutationFn: editarPromocao,
-    onSuccess: invalidarPromocoes
   });
 
   const mutationCriarAdicional = useMutation({
@@ -127,7 +93,6 @@ export function AdminCardapioPage() {
   const saboresDisponiveis = (pizzas ?? []).filter((p: any) => p.tipo === 'sabor_unico');
 
   const limparForm = () => setForm(vazio);
-  const limparPromoForm = () => setPromoForm(promocaoVazia);
 
   const handleEditarClick = async (pizza: any) => {
     try {
@@ -166,23 +131,6 @@ export function AdminCardapioPage() {
     }
   };
 
-  const handleEditarPromocao = (promocao: any) => {
-    setPromoForm({
-      id: promocao.id,
-      tipo: promocao.tipo || 'combo',
-      nome: promocao.nome || '',
-      preco_combo: String(promocao.preco_combo ?? ''),
-      pizza_id: String(promocao.pizza_id ?? ''),
-      desconto_tipo: promocao.desconto_tipo || 'percentual',
-      desconto_valor: String(promocao.desconto_valor ?? ''),
-      combo_slots: (promocao.combo_slots ?? []).map((s: any) => ({
-        categoria_id: String(s.categoria_id),
-        quantidade: s.quantidade,
-        rotulo: s.rotulo ?? ''
-      })),
-    });
-  };
-
   const toggleSabor = (id: number) => {
     setForm((f) => ({
       ...f,
@@ -192,18 +140,18 @@ export function AdminCardapioPage() {
     }));
   };
 
-  const adicionarSlot = () => setPromoForm((f) => ({
+  const adicionarSlot = () => setForm((f) => ({
     ...f,
     combo_slots: [...f.combo_slots, { categoria_id: '', quantidade: 1, rotulo: '' }]
   }));
 
-  const removerSlot = (i: number) => setPromoForm((f) => ({
+  const removerSlot = (i: number) => setForm((f) => ({
     ...f,
     combo_slots: f.combo_slots.filter((_, idx) => idx !== i)
   }));
 
   const atualizarSlot = (i: number, campo: string, valor: any) =>
-    setPromoForm((f) => ({
+    setForm((f) => ({
       ...f,
       combo_slots: f.combo_slots.map((s, idx) => idx === i ? { ...s, [campo]: valor } : s)
     }));
@@ -238,6 +186,16 @@ export function AdminCardapioPage() {
       dados.sabores_permitidos = form.sabores_permitidos;
     }
 
+    if (form.tipo === 'combo') {
+      dados.combo_slots = form.combo_slots
+        .filter((s) => s.categoria_id)
+        .map((s) => ({
+          categoria_id: Number(s.categoria_id),
+          quantidade: Number(s.quantidade),
+          rotulo: s.rotulo
+        }));
+    }
+
     if (form.id) {
       mutationEditar.mutate({ ...dados, id: form.id, visivel: true });
     } else {
@@ -245,40 +203,7 @@ export function AdminCardapioPage() {
     }
   };
 
-  const handleSalvarPromocao = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!promoForm.nome) {
-      alert('Preencha o nome da promoção!');
-      return;
-    }
-
-    const dados: any = {
-      tipo: promoForm.tipo,
-      nome: promoForm.nome.trim(),
-      preco_combo: promoForm.tipo === 'combo' && promoForm.preco_combo ? Number(promoForm.preco_combo) : null,
-      pizza_id: promoForm.tipo === 'desconto_produto' && promoForm.pizza_id ? Number(promoForm.pizza_id) : null,
-      desconto_tipo: promoForm.tipo === 'desconto_produto' ? promoForm.desconto_tipo : null,
-      desconto_valor: promoForm.tipo === 'desconto_produto' && promoForm.desconto_valor ? Number(promoForm.desconto_valor) : null,
-      combo_slots: promoForm.tipo === 'combo'
-        ? promoForm.combo_slots
-          .filter((s) => s.categoria_id)
-          .map((s) => ({
-            categoria_id: Number(s.categoria_id),
-            quantidade: Number(s.quantidade),
-            rotulo: s.rotulo
-          }))
-        : [],
-    };
-
-    if (promoForm.id) {
-      mutationEditarPromocao.mutate({ ...dados, id: promoForm.id, ativa: true });
-    } else {
-      mutationCriarPromocao.mutate(dados);
-    }
-  };
-
   const handleToggleVisivel = (pizza: any) => mutationToggleVisivel.mutate({ ...pizza, visivel: !pizza.visivel });
-  const handleTogglePromocao = (promocao: any) => mutationTogglePromocao.mutate({ ...promocao, ativa: !promocao.ativa });
 
   const handleCriarAdicional = (e: React.FormEvent) => {
     e.preventDefault();
@@ -296,8 +221,9 @@ export function AdminCardapioPage() {
   if (isError) return <div className="mensagem-erro-box">Erro ao carregar o cardápio.</div>;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-      <div>
+    <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
+      {/* COLUNA ESQUERDA - CADASTRO DE PRODUTOS */}
+      <div style={{ flex: 2, minWidth: 340 }}>
         <h1>🍕 Cardápio (Admin)</h1>
 
         <form onSubmit={handleSalvar} className="form-crud" style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 460, marginBottom: 32 }}>
@@ -333,20 +259,22 @@ export function AdminCardapioPage() {
             <input value={form.imagem_url} onChange={(e) => setForm({ ...form, imagem_url: e.target.value })} placeholder="https://..." />
           </div>
 
-          <div className="cores-flex" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-            <div className="input-group">
-              <label>Preço Brotinho (R$)</label>
-              <input type="number" step="0.10" value={form.preco_brotinho} onChange={(e) => setForm({ ...form, preco_brotinho: e.target.value })} placeholder="35.00" />
+          {form.tipo !== 'combo' && (
+            <div className="cores-flex" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              <div className="input-group">
+                <label>Preço Brotinho (R$)</label>
+                <input type="number" step="0.10" value={form.preco_brotinho} onChange={(e) => setForm({ ...form, preco_brotinho: e.target.value })} placeholder="35.00" />
+              </div>
+              <div className="input-group">
+                <label>Preço Média (R$)</label>
+                <input type="number" step="0.10" value={form.preco_media} onChange={(e) => setForm({ ...form, preco_media: e.target.value })} placeholder="45.00" />
+              </div>
+              <div className="input-group">
+                <label>Preço Grande (R$)</label>
+                <input type="number" step="0.10" value={form.preco_grande} onChange={(e) => setForm({ ...form, preco_grande: e.target.value })} placeholder="55.00" />
+              </div>
             </div>
-            <div className="input-group">
-              <label>Preço Média (R$)</label>
-              <input type="number" step="0.10" value={form.preco_media} onChange={(e) => setForm({ ...form, preco_media: e.target.value })} placeholder="45.00" />
-            </div>
-            <div className="input-group">
-              <label>Preço Grande (R$)</label>
-              <input type="number" step="0.10" value={form.preco_grande} onChange={(e) => setForm({ ...form, preco_grande: e.target.value })} placeholder="55.00" />
-            </div>
-          </div>
+          )}
 
           {form.tipo === 'personalizavel' && (
             <fieldset style={{ border: '1px solid var(--border-soft)', borderRadius: 'var(--radius-sm)', padding: 14 }}>
@@ -372,71 +300,13 @@ export function AdminCardapioPage() {
             </fieldset>
           )}
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-            <button type="submit" style={{ flex: 1 }}>{form.id ? 'Salvar Alterações' : 'Gravar no Cardápio'}</button>
-            {form.id && <button type="button" onClick={limparForm} className="btn-secundario">Cancelar</button>}
-          </div>
-        </form>
-      </div>
-
-      <div>
-        <h2>📂 Categorias</h2>
-        <form onSubmit={handleCriarCategoria} className="form-crud" style={{ display: 'flex', gap: 8, marginBottom: 16, maxWidth: 460 }}>
-          <input value={nomeCategoria} onChange={(e) => setNomeCategoria(e.target.value)} placeholder="Nova categoria" style={{ flex: 1 }} />
-          <button type="submit">Adicionar</button>
-        </form>
-
-        <ul style={{ listStyle: 'none', padding: 0, marginBottom: 32, maxWidth: 460 }}>
-          {categorias?.map((c: any) => (
-            <li key={c.id} className="card-simples" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 10, marginBottom: 8 }}>
-              <strong>{c.nome}</strong>
-              <button onClick={() => mutationExcluirCategoria.mutate(c.id)} className="btn-perigo" style={{ fontSize: '0.8rem', padding: '4px 8px' }}>Remover</button>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div>
-        <h2>🥓 Adicionais</h2>
-        <form onSubmit={handleCriarAdicional} className="form-crud" style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16, maxWidth: 460 }}>
-          <input value={nomeAdicional} onChange={(e) => setNomeAdicional(e.target.value)} placeholder="Nome do adicional" />
-          <input value={precoAdicional} onChange={(e) => setPrecoAdicional(e.target.value)} placeholder="Preço" type="number" step="0.05" />
-          <button type="submit">Adicionar</button>
-        </form>
-
-        <ul style={{ listStyle: 'none', padding: 0, maxWidth: 460 }}>
-          {adicionais?.map((a: any) => (
-            <li key={a.id} className="card-simples" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 10, marginBottom: 8 }}>
-              <span><strong>{a.nome}</strong> — R$ {Number(a.preco).toFixed(2)}</span>
-              <button onClick={() => mutationExcluirAdicional.mutate(a.id)} className="btn-perigo" style={{ fontSize: '0.8rem', padding: '4px 8px' }}>Remover</button>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div>
-        <h2>🎉 Promoções</h2>
-        <form onSubmit={handleSalvarPromocao} className="form-crud" style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 460, marginBottom: 32 }}>
-          <div className="input-group">
-            <label>Tipo de Promoção *</label>
-            <select value={promoForm.tipo} onChange={(e) => setPromoForm({ ...promoForm, tipo: e.target.value })}>
-              <option value="combo">Combo</option>
-              <option value="desconto_produto">Desconto em Produto</option>
-            </select>
-          </div>
-
-          <div className="input-group">
-            <label>Nome da promoção *</label>
-            <input value={promoForm.nome} onChange={(e) => setPromoForm({ ...promoForm, nome: e.target.value })} placeholder="Ex: Combo Família" required />
-          </div>
-
-          {promoForm.tipo === 'combo' && (
+          {form.tipo === 'combo' && (
             <fieldset style={{ border: '1px solid var(--border-soft)', borderRadius: 'var(--radius-sm)', padding: 14 }}>
               <legend style={{ fontWeight: 700, padding: '0 6px', color: 'var(--ink)' }}>Preço fixo do combo</legend>
-              <input type="number" step="0.10" value={promoForm.preco_combo} onChange={(e) => setPromoForm({ ...promoForm, preco_combo: e.target.value })} placeholder="Preço do combo (R$)" style={{ width: '100%', marginBottom: 12 }} />
+              <input type="number" step="0.10" value={form.preco_combo} onChange={(e) => setForm({ ...form, preco_combo: e.target.value })} placeholder="Preço do combo (R$)" style={{ width: '100%', marginBottom: 12 }} />
 
               <legend style={{ fontWeight: 700, padding: '0 6px', color: 'var(--ink)' }}>Itens que compõem o combo</legend>
-              {promoForm.combo_slots.map((slot, i) => (
+              {form.combo_slots.map((slot, i) => (
                 <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center' }}>
                   <select value={slot.categoria_id} onChange={(e) => atualizarSlot(i, 'categoria_id', e.target.value)}>
                     <option value="">Categoria</option>
@@ -451,66 +321,60 @@ export function AdminCardapioPage() {
             </fieldset>
           )}
 
-          {promoForm.tipo === 'desconto_produto' && (
-            <fieldset style={{ border: '1px solid var(--border-soft)', borderRadius: 'var(--radius-sm)', padding: 14 }}>
-              <div className="input-group">
-                <label>Produto *</label>
-                <select value={promoForm.pizza_id} onChange={(e) => setPromoForm({ ...promoForm, pizza_id: e.target.value })} required>
-                  <option value="">Selecione o produto...</option>
-                  {pizzas?.map((pizza: any) => <option key={pizza.id} value={pizza.id}>{pizza.nome}</option>)}
-                </select>
-              </div>
-
-              <div className="input-group">
-                <label>Tipo de desconto *</label>
-                <select value={promoForm.desconto_tipo} onChange={(e) => setPromoForm({ ...promoForm, desconto_tipo: e.target.value })}>
-                  <option value="percentual">Percentual</option>
-                  <option value="valor_fixo">Valor fixo</option>
-                </select>
-              </div>
-
-              <div className="input-group">
-                <label>Valor do desconto *</label>
-                <input type="number" step="0.10" min="0" value={promoForm.desconto_valor} onChange={(e) => setPromoForm({ ...promoForm, desconto_valor: e.target.value })} required />
-              </div>
-            </fieldset>
-          )}
-
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-            <button type="submit" style={{ flex: 1 }}>{promoForm.id ? 'Salvar Alterações' : 'Criar Promoção'}</button>
-            {promoForm.id && <button type="button" onClick={limparPromoForm} className="btn-secundario">Cancelar</button>}
+            <button type="submit" style={{ flex: 1 }}>{form.id ? 'Salvar Alterações' : 'Gravar no Cardápio'}</button>
+            {form.id && <button type="button" onClick={limparForm} className="btn-secundario">Cancelar</button>}
           </div>
         </form>
-      </div>
 
-      <div>
         <h2>Cardápio Atual</h2>
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {pizzas?.map((pizza: any) => (
-            <li key={`pizza-${pizza.id}`} className="card-simples" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, marginBottom: 10, opacity: pizza.visivel ? 1 : 0.5 }}>
+            <li key={pizza.id} className="card-simples" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, marginBottom: 10, opacity: pizza.visivel ? 1 : 0.5 }}>
               <button onClick={() => handleToggleVisivel(pizza)} title="Alternar visibilidade" className="btn-secundario" style={{ padding: '4px 8px' }}>
                 {pizza.visivel ? '🟢 Visível' : '🔴 Oculto'}
               </button>
               <span style={{ flex: 1, fontWeight: 600 }}>
-                {pizza.nome} ({pizza.categoria || 'Sem categoria'}) — {`R$ ${Number(pizza.preco_brotinho || 0).toFixed(2)} / ${Number(pizza.preco_media || 0).toFixed(2)} / ${Number(pizza.preco_grande || 0).toFixed(2)}`}
+                {pizza.nome} ({pizza.categoria || 'Sem categoria'}) — {pizza.tipo === 'combo'
+                  ? `R$ ${Number(pizza.preco_combo || 0).toFixed(2)}`
+                  : `R$ ${Number(pizza.preco_brotinho || 0).toFixed(2)} / ${Number(pizza.preco_media || 0).toFixed(2)} / ${Number(pizza.preco_grande || 0).toFixed(2)}`}
               </span>
               <button onClick={() => handleEditarClick(pizza)} className="btn-secundario" style={{ fontSize: '0.85rem' }}>Editar</button>
               <button onClick={() => mutationExcluir.mutate(pizza.id)} className="btn-perigo" style={{ fontSize: '0.85rem' }}>Excluir</button>
             </li>
           ))}
+        </ul>
+      </div>
 
-          {promocoes?.map((promocao: any) => (
-            <li key={`promocao-${promocao.id}`} className="card-simples" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, marginBottom: 10, opacity: promocao.ativa ? 1 : 0.5 }}>
-              <button onClick={() => handleTogglePromocao(promocao)} title="Alternar visibilidade" className="btn-secundario" style={{ padding: '4px 8px' }}>
-                {promocao.ativa ? '🟢 Visível' : '🔴 Oculto'}
-              </button>
-              <span style={{ flex: 1, fontWeight: 600 }}>
-                🎉 {promocao.nome} — {promocao.tipo === 'combo'
-                  ? `R$ ${Number(promocao.preco_combo || 0).toFixed(2)}`
-                  : `${promocao.desconto_tipo === 'percentual' ? `${Number(promocao.desconto_valor || 0)}%` : `R$ ${Number(promocao.desconto_valor || 0).toFixed(2)}`} de desconto`}
-              </span>
-              <button onClick={() => handleEditarPromocao(promocao)} className="btn-secundario" style={{ fontSize: '0.85rem' }}>Editar</button>
-              <button onClick={() => mutationExcluirPromocao.mutate(promocao.id)} className="btn-perigo" style={{ fontSize: '0.85rem' }}>Excluir</button>
+      {/* COLUNA DIREITA - CATEGORIAS & ADICIONAIS */}
+      <div style={{ flex: 1, minWidth: 280 }}>
+        <h2>📂 Categorias</h2>
+        <form onSubmit={handleCriarCategoria} className="form-crud" style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <input value={nomeCategoria} onChange={(e) => setNomeCategoria(e.target.value)} placeholder="Nova categoria" style={{ flex: 1 }} />
+          <button type="submit">Adicionar</button>
+        </form>
+
+        <ul style={{ listStyle: 'none', padding: 0, marginBottom: 32 }}>
+          {categorias?.map((c: any) => (
+            <li key={c.id} className="card-simples" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 10, marginBottom: 8 }}>
+              <strong>{c.nome}</strong>
+              <button onClick={() => mutationExcluirCategoria.mutate(c.id)} className="btn-perigo" style={{ fontSize: '0.8rem', padding: '4px 8px' }}>Remover</button>
+            </li>
+          ))}
+        </ul>
+
+        <h2>🥓 Adicionais</h2>
+        <form onSubmit={handleCriarAdicional} className="form-crud" style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+          <input value={nomeAdicional} onChange={(e) => setNomeAdicional(e.target.value)} placeholder="Nome do adicional" />
+          <input value={precoAdicional} onChange={(e) => setPrecoAdicional(e.target.value)} placeholder="Preço" type="number" step="0.05" />
+          <button type="submit">Adicionar</button>
+        </form>
+
+        <ul style={{ listStyle: 'none', padding: 0 }}>
+          {adicionais?.map((a: any) => (
+            <li key={a.id} className="card-simples" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 10, marginBottom: 8 }}>
+              <span><strong>{a.nome}</strong> — R$ {Number(a.preco).toFixed(2)}</span>
+              <button onClick={() => mutationExcluirAdicional.mutate(a.id)} className="btn-perigo" style={{ fontSize: '0.8rem', padding: '4px 8px' }}>Remover</button>
             </li>
           ))}
         </ul>

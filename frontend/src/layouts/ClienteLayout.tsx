@@ -1,8 +1,18 @@
 import { Link, Outlet } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { obterTokenCliente, logoutCliente } from '../api/clienteAuth';
+import { buscarConfig } from '../api/config';
+import { useTema } from '../../hooks/useTema';
 
 export function ClienteLayout() {
   const logado = !!obterTokenCliente();
+
+  const { data: config } = useQuery({
+    queryKey: ['config'],
+    queryFn: buscarConfig,
+  });
+
+  const { modo, setModo } = useTema(config);
 
   return (
     <div className="layout-master">
@@ -13,15 +23,29 @@ export function ClienteLayout() {
         </div>
 
         <nav className="loja-nav-links">
-          <Link to="/" className="loja-link-item">Cardápio</Link>
-          <Link to="/reservar" className="loja-link-item">Reservar</Link>
+          <Link to="/" className="loja-link-item">
+            Cardápio
+          </Link>
+
+          <Link to="/reservar" className="loja-link-item">
+            Reservar
+          </Link>
           
           {logado ? (
             <>
-              <Link to="/perfil" className="loja-link-item">Meu Perfil</Link>
-              <Link to="/meus-pedidos" className="loja-link-item">Meus Pedidos</Link>
+              <Link to="/perfil" className="loja-link-item">
+                Meu Perfil
+              </Link>
+
+              <Link to="/meus-pedidos" className="loja-link-item">
+                Meus Pedidos
+              </Link>
+
               <button 
-                onClick={() => { logoutCliente(); window.location.href = "/"; }}
+                onClick={() => {
+                  logoutCliente();
+                  window.location.href = "/";
+                }}
                 className="sidebar-sair"
                 style={{ padding: '6px 14px' }}
               >
@@ -29,8 +53,30 @@ export function ClienteLayout() {
               </button>
             </>
           ) : (
-            <Link to="/login" className="loja-link-item">Entrar / Cadastrar 👤</Link>
+            <Link to="/login" className="loja-link-item">
+              Entrar / Cadastrar 👤
+            </Link>
           )}
+
+          <button
+            type="button"
+            onClick={() =>
+              setModo(modo === 'claro' ? 'escuro' : 'claro')
+            }
+            className="loja-link-item"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            title={
+              modo === 'claro'
+                ? 'Ativar modo escuro'
+                : 'Ativar modo claro'
+            }
+          >
+            {modo === 'claro' ? '🌙' : '☀️'}
+          </button>
 
           <Link to="/carrinho" className="btn-carrinho-nav">
             🛒 Carrinho

@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AdminLayout } from './layouts/AdminLayout';
 import { ClienteLayout } from './layouts/ClienteLayout';
-import { AdminCardapioPage } from './pages/AdminCardapioPage';
+import { AdminCardapioPage } from './layouts/AdminCardapioPage';
 import { AdminConfigPage } from './pages/AdminConfigPage';
 import { AdminMesasPage } from './pages/AdminMesasPage';
 import { AdminSalaoPage } from './pages/AdminSalaoPage';
