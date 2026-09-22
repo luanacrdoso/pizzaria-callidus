@@ -464,6 +464,39 @@ hr { border: none; border-top: 1px solid var(--border-soft); margin: 20px 0; }
 }
 .comanda-card-total { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
 
+
+/* ---------- Carrossel ---------- */
+.carrossel-trilho {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 8px 4px;
+}
+
+.carrossel-trilho > * {
+  scroll-snap-align: start;
+  flex: 0 0 240px;
+}
+
+.carrossel-trilho::-webkit-scrollbar {
+  height: 6px;
+}
+
+.carrossel-seta {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+
+.carrossel-seta-esq { left: -8px; }
+.carrossel-seta-dir { right: -8px; }
+
 /* Utilitários disponíveis para telas novas e trechos migrados. */
 @tailwind utilities;
 

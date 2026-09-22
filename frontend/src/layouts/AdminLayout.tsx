@@ -17,6 +17,12 @@ export function AdminLayout() {
         <NavLink to="/admin/config" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Aparência</NavLink>
         <NavLink to="/admin/cardapio" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Cardápio</NavLink>
         <NavLink to="/admin/mesas" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Mesas</NavLink>
+        <NavLink
+  to="/admin/organizacao"
+  className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}
+>
+  Organização
+</NavLink>
         <NavLink to="/admin/salao" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Salão de Eventos</NavLink>
         <NavLink to="/admin/reservas-mesa" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Reservas</NavLink>
         <NavLink to="/admin/cupons" className={({ isActive }) => `sidebar-link ${isActive ? 'ativo' : ''}`}>Cupons</NavLink>
