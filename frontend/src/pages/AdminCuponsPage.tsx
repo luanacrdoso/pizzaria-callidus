@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { buscarCupons, criarCupom, atualizarCupom, excluirCupom, type Cupom } from '../api/cupons';
+import { buscarCupons, criarCupom, atualizarCupom, excluirCupom } from '../api/cupons';
 
 const ROTULOS_TIPO: Record<string, string> = {
   percentual: 'Percentual (%)',

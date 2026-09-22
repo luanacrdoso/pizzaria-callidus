@@ -1,18 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap');
 
-:root {
-  --ink: #2A2118;
-  --ink-soft: #5B5045;
-  --ink-faint: #6B6055;
-  --cream: #FBF7EF;
-  --cream-2: #F3EAD8;
-  --surface: #FFFFFF;
-  --border: #D9CAAE;
-  --border-soft: #F0E7D6;
+@tailwind base;
+@tailwind components;
 
-  --gold: #BD7A24;
-  --gold-dark: #96601A;
-  --gold-tint: #FBEDD4;
+:root {
+  --cor-fundo: #FDF8F0;
+  --cor-botao: #C0392B;
+  --cor-texto: #2A2118;
+  --cor-fundo-rgb: 253 248 240;
+  --cor-botao-rgb: 192 57 43;
+  --cor-texto-rgb: 42 33 24;
+  --cor-texto-botao: #FFFFFF;
+
+  --ink: var(--cor-texto);
+  --ink-soft: color-mix(in srgb, var(--cor-texto) 85%, var(--cor-fundo));
+  --ink-faint: color-mix(in srgb, var(--cor-texto) 74%, var(--cor-fundo));
+  --cream: var(--cor-fundo);
+  --cream-2: color-mix(in srgb, var(--cor-fundo) 92%, var(--cor-texto));
+  --surface: color-mix(in srgb, var(--cor-fundo) 25%, white);
+  --border: color-mix(in srgb, var(--cor-texto) 24%, var(--cor-fundo));
+  --border-soft: color-mix(in srgb, var(--cor-texto) 13%, var(--cor-fundo));
+
+  --gold: var(--cor-botao);
+  --gold-dark: color-mix(in srgb, var(--cor-botao) 85%, black);
+  --gold-tint: color-mix(in srgb, var(--cor-botao) 14%, var(--cor-fundo));
 
   --success: #3F7D53;
   --success-tint: #E4F3E8;
@@ -23,7 +34,7 @@
   --warning: #A5760A;
   --warning-tint: #FCF0D6;
 
-  --color-primary: var(--gold);
+  --color-primary: var(--cor-botao);
   --color-secondary: var(--gold-dark);
 
   --radius-sm: 8px;
@@ -37,6 +48,11 @@
 
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --font-body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* As superfícies acompanham o modo, mantendo as classes atuais. */
+:root.dark {
+  --surface: color-mix(in srgb, var(--cor-fundo) 91%, white);
 }
 
 * { box-sizing: border-box; }
@@ -82,7 +98,7 @@ button {
   font-weight: 600;
   font-size: 0.92rem;
   background: linear-gradient(150deg, var(--gold), var(--gold-dark));
-  color: white;
+  color: var(--cor-texto-botao);
   box-shadow: var(--shadow-sm);
   transition: transform 0.1s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
@@ -97,7 +113,7 @@ button.btn-secundario, button[type="button"].secundario {
   border: 1px solid var(--border);
   box-shadow: none;
 }
-button.btn-perigo { background: linear-gradient(150deg, var(--danger), #8A2E1C); }
+button.btn-perigo { background: linear-gradient(150deg, var(--danger), #8A2E1C); color: white; }
 button.btn-link { background: none; color: var(--gold-dark); box-shadow: none; padding: 4px 6px; text-decoration: underline; }
 
 input, select, textarea {
@@ -148,14 +164,6 @@ hr { border: none; border-top: 1px solid var(--border-soft); margin: 20px 0; }
   min-height: 100vh;
   width: 100%;
   background-color: var(--cream);
-
-  --gold: var(--color-primary);
-  --gold-dark: var(--color-secondary);
-  --gold-tint: color-mix(in srgb, var(--color-primary) 16%, white);
-  --cream: color-mix(in srgb, var(--color-primary) 5%, #FBF7EF);
-  --cream-2: color-mix(in srgb, var(--color-primary) 11%, #FBF7EF);
-  --border: color-mix(in srgb, var(--color-primary) 24%, #E7DCC7);
-  --border-soft: color-mix(in srgb, var(--color-primary) 13%, #F0E7D6);
 }
 
 .layout-content {
@@ -241,7 +249,7 @@ hr { border: none; border-top: 1px solid var(--border-soft); margin: 20px 0; }
 .sidebar-link:hover { background: var(--cream-2); color: var(--ink); }
 .sidebar-link.ativo {
   background: linear-gradient(150deg, var(--gold), var(--gold-dark));
-  color: white;
+  color: var(--cor-texto-botao);
   font-weight: 600;
 }
 .sidebar-sair {
@@ -271,7 +279,7 @@ hr { border: none; border-top: 1px solid var(--border-soft); margin: 20px 0; }
 .pizza-card-corpo { padding: 16px; }
 .pizza-card-tag {
   display: inline-block;
-  background: var(--gold); color: white;
+  background: var(--gold); color: var(--cor-texto-botao);
   font-size: 0.7rem; font-weight: 700;
   padding: 3px 10px; border-radius: var(--radius-full);
   text-transform: uppercase;
@@ -364,7 +372,7 @@ hr { border: none; border-top: 1px solid var(--border-soft); margin: 20px 0; }
 /* ---------- Pills de categoria + busca ---------- */
 .filtros-cardapio { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
 .categoria-pill { padding: 8px 18px; border-radius: var(--radius-full); border: 1px solid var(--border); background: var(--surface); color: var(--ink-soft); font-weight: 600; font-size: 0.88rem; box-shadow: none; }
-.categoria-pill.ativa { background: linear-gradient(150deg, var(--gold), var(--gold-dark)); color: white; border-color: transparent; box-shadow: var(--shadow-sm); }
+.categoria-pill.ativa { background: linear-gradient(150deg, var(--gold), var(--gold-dark)); color: var(--cor-texto-botao); border-color: transparent; box-shadow: var(--shadow-sm); }
 .busca-cardapio { margin-left: auto; min-width: 220px; }
 
 /* ---------- Card de produto com imagem ---------- */
@@ -380,7 +388,7 @@ hr { border: none; border-top: 1px solid var(--border-soft); margin: 20px 0; }
 .opcoes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
 .opcao-card { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-md); background: var(--surface); cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.12s ease; }
 .opcao-card:hover { border-color: var(--gold); }
-.opcao-card.selecionada { background: linear-gradient(150deg, var(--gold), var(--gold-dark)); color: white; border-color: transparent; }
+.opcao-card.selecionada { background: linear-gradient(150deg, var(--gold), var(--gold-dark)); color: var(--cor-texto-botao); border-color: transparent; }
 .opcao-card input { display: none; }
 
 .stepper-qtd { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: var(--radius-full); overflow: hidden; }
@@ -410,7 +418,7 @@ hr { border: none; border-top: 1px solid var(--border-soft); margin: 20px 0; }
 .timeline-etapa { display: flex; flex-direction: column; align-items: center; gap: 8px; position: relative; z-index: 1; flex: 1; }
 .timeline-icone { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--cream-2); font-size: 1.3rem; border: 2px solid var(--border-soft); }
 .timeline-etapa.concluida .timeline-icone { background: var(--success-tint); border-color: var(--success); }
-.timeline-etapa.atual .timeline-icone { background: linear-gradient(150deg, var(--gold), var(--gold-dark)); border-color: transparent; color: white; }
+.timeline-etapa.atual .timeline-icone { background: linear-gradient(150deg, var(--gold), var(--gold-dark)); border-color: transparent; color: var(--cor-texto-botao); }
 .timeline-etapa span { font-size: 0.78rem; font-weight: 600; color: var(--ink-soft); text-align: center; }
 
 .card-central { max-width: 560px; margin: 0 auto; background: var(--surface); border-radius: var(--radius-lg); padding: 28px; box-shadow: var(--shadow-md); }
@@ -455,3 +463,6 @@ hr { border: none; border-top: 1px solid var(--border-soft); margin: 20px 0; }
   border-top: 1px solid var(--border-soft);
 }
 .comanda-card-total { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
+
+/* Utilitários disponíveis para telas novas e trechos migrados. */
+@tailwind utilities;
