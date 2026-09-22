@@ -19,16 +19,17 @@ async function buscarAdicionais() {
   const r = await fetch(`${API_URL}/adicionais`);
   return r.json();
 }
-async function buscarCategorias() {
-  const r = await fetch(`${API_URL}/categorias`);
-  return r.json();
-}
+
 
 const TAMANHOS = [
   { chave: 'brotinho', rotulo: 'Brotinho' },
   { chave: 'media', rotulo: 'Média' },
   { chave: 'grande', rotulo: 'Grande' },
 ];
+
+// Categorias cujo item é vendido como preço único, sem tamanho nem adicionais/borda.
+// Ajustem essa lista se o Admin criar outras categorias parecidas (ex: "Sucos", "Entradas").
+const TERMOS_ITEM_SIMPLES = ['bebida', 'sobremesa'];
 
 export function DetalheProdutoPage() {
   const { id } = useParams();
@@ -38,11 +39,9 @@ export function DetalheProdutoPage() {
   const { data: pizza, isLoading, isError } = useQuery({ queryKey: ['pizza', id], queryFn: () => buscarPizza(id!) });
   const { data: cardapio } = useQuery({ queryKey: ['cardapio-publico'], queryFn: buscarCardapioTodo });
   const { data: adicionais } = useQuery({ queryKey: ['adicionais'], queryFn: buscarAdicionais });
-  const { data: categorias } = useQuery({ queryKey: ['categorias'], queryFn: buscarCategorias });
 
   const [tamanho, setTamanho] = useState('media');
   const [saboresSelecionados, setSaboresSelecionados] = useState<number[]>([]);
-  const [escolhasCombo, setEscolhasCombo] = useState<Record<number, string[]>>({});
   const [extrasSelecionados, setExtrasSelecionados] = useState<{ nome: string; preco: number }[]>([]);
   const [observacoes, setObservacoes] = useState('');
   const [quantidade, setQuantidade] = useState(1);
@@ -51,7 +50,9 @@ export function DetalheProdutoPage() {
   if (isLoading) return <p>Carregando...</p>;
   if (isError || !pizza) return <p>Item não encontrado.</p>;
 
-  const nomeCategoria = (catId: number) => categorias?.find((c: any) => c.id === catId)?.nome ?? '';
+  const ehItemSimples = TERMOS_ITEM_SIMPLES.some((termo) =>
+    (pizza.categoria || '').toLowerCase().includes(termo)
+  );
 
   const toggleExtra = (a: any) => {
     const jaTem = extrasSelecionados.some((e) => e.nome === a.nome);
@@ -67,44 +68,37 @@ export function DetalheProdutoPage() {
     });
   };
 
-  const atualizarEscolhaCombo = (slotIndex: number, posicao: number, pizzaId: string) => {
-    setEscolhasCombo((atual) => {
-      const nova = [...(atual[slotIndex] ?? [])];
-      nova[posicao] = pizzaId;
-      return { ...atual, [slotIndex]: nova };
-    });
-  };
-
-  const precoExtras = extrasSelecionados.reduce((s, e) => s + e.preco, 0);
+  const precoExtras = ehItemSimples ? 0 : extrasSelecionados.reduce((s, e) => s + e.preco, 0);
   let precoUnitario = 0;
   let nomeFinal = pizza.nome;
+  let tamanhoParaCarrinho = tamanho;
 
-  if (pizza.tipo === 'sabor_unico') {
+  if (ehItemSimples) {
+    precoUnitario = Number(pizza.preco_media ?? pizza.preco_brotinho ?? pizza.preco_grande ?? 0);
+    tamanhoParaCarrinho = '-';
+  } else if (pizza.tipo === 'sabor_unico') {
     precoUnitario = Number(pizza[`preco_${tamanho}`] ?? 0) + precoExtras;
   } else if (pizza.tipo === 'personalizavel') {
     const saboresObjetos = saboresSelecionados.map((sid) => cardapio?.find((p: any) => p.id === sid)).filter(Boolean) as any[];
     const precos = saboresObjetos.map((s) => Number(s[`preco_${tamanho}`] ?? 0));
     precoUnitario = (precos.length > 0 ? calcularPrecoPizzaMultiplosSabores(precos) : 0) + precoExtras;
     if (saboresObjetos.length > 0) nomeFinal = `${pizza.nome}: ${saboresObjetos.map((s) => s.nome).join(' / ')}`;
-  } else if (pizza.tipo === 'combo') {
-    precoUnitario = Number(pizza.preco_combo ?? 0) + precoExtras;
   }
 
   const handleAdicionar = () => {
-    if (pizza.tipo === 'personalizavel' && saboresSelecionados.length === 0) { setErro('Escolha pelo menos um sabor.'); return; }
-    if (pizza.tipo === 'combo') {
-      const slots = pizza.combo_slots ?? [];
-      for (let i = 0; i < slots.length; i++) {
-        const escolhas = escolhasCombo[i] ?? [];
-        for (let pos = 0; pos < slots[i].quantidade; pos++) {
-          if (!escolhas[pos]) { setErro('Complete todas as escolhas do combo.'); return; }
-        }
-      }
+    if (!ehItemSimples && pizza.tipo === 'personalizavel' && saboresSelecionados.length === 0) {
+      setErro('Escolha pelo menos um sabor.');
+      return;
     }
     setErro('');
     adicionarItem({
-      pizzaId: pizza.id, nome: nomeFinal, tamanho: pizza.tipo === 'combo' ? '-' : tamanho,
-      extras: extrasSelecionados.map((e) => e.nome), observacoes, quantidade, precoUnitario,
+      pizzaId: pizza.id,
+      nome: nomeFinal,
+      tamanho: tamanhoParaCarrinho,
+      extras: extrasSelecionados.map((e) => e.nome),
+      observacoes,
+      quantidade,
+      precoUnitario,
       imagemUrl: pizza.imagem_url,
     });
     navigate('/carrinho');
@@ -122,7 +116,7 @@ export function DetalheProdutoPage() {
           <p>{pizza.descricao}</p>
           <hr />
 
-          {pizza.tipo === 'sabor_unico' && (
+          {!ehItemSimples && pizza.tipo === 'sabor_unico' && (
             <>
               <h3>Tamanho</h3>
               <div className="opcoes-grid">
@@ -136,7 +130,7 @@ export function DetalheProdutoPage() {
             </>
           )}
 
-          {pizza.tipo === 'personalizavel' && (
+          {!ehItemSimples && pizza.tipo === 'personalizavel' && (
             <>
               <h3>Tamanho</h3>
               <div className="opcoes-grid">
@@ -163,26 +157,7 @@ export function DetalheProdutoPage() {
             </>
           )}
 
-          {pizza.tipo === 'combo' && (
-            <>
-              <p><strong>Combo — R$ {Number(pizza.preco_combo ?? 0).toFixed(2)}</strong></p>
-              {(pizza.combo_slots ?? []).map((slot: any, slotIndex: number) => (
-                <div key={slotIndex} style={{ marginBottom: 12 }}>
-                  <h3>{slot.rotulo || nomeCategoria(slot.categoria_id)}</h3>
-                  {Array.from({ length: slot.quantidade }).map((_, pos) => (
-                    <select key={pos} value={escolhasCombo[slotIndex]?.[pos] ?? ''} onChange={(e) => atualizarEscolhaCombo(slotIndex, pos, e.target.value)} style={{ marginRight: 8, marginBottom: 6 }}>
-                      <option value="">Escolha {pos + 1}</option>
-                      {cardapio?.filter((p: any) => p.categoria_id === slot.categoria_id && p.tipo !== 'combo').map((p: any) => (
-                        <option key={p.id} value={p.id}>{p.nome}</option>
-                      ))}
-                    </select>
-                  ))}
-                </div>
-              ))}
-            </>
-          )}
-
-          {adicionais?.length > 0 && (
+          {!ehItemSimples && adicionais?.length > 0 && (
             <>
               <h3>Adicionais</h3>
               <div className="opcoes-grid">

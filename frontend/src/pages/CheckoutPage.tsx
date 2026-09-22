@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { useCarrinhoStore } from '../api/carrinho';
+import { useCarrinhoStore, salvarUltimoPedido } from '../api/carrinho';
 import { obterTokenCliente, fetchComoCliente } from '../api/clienteAuth';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -75,6 +75,7 @@ export function CheckoutPage() {
     const token = obterTokenCliente();
     const payload = {
       tipo: tipoPedido,
+      cliente_id: logado ? perfil?.id ?? null : null,
       cliente_nome: nome, cliente_telefone: telefone,
       endereco_entrega: tipoPedido === 'entrega' ? endereco : null,
       mesa_id: tipoPedido === 'presencial' && mesaId ? Number(mesaId) : null,
@@ -91,10 +92,10 @@ export function CheckoutPage() {
 
     if (!resposta.ok) { setErro("Erro ao criar o pedido."); return; }
     const pedido = await resposta.json();
+    salvarUltimoPedido(pedido.id);
     limparCarrinho();
     navigate(`/pagamento/${pedido.id}`, { state: { formaPagamento, total } });
   };
-
   return (
     <div className="max-w-700">
       <h1>Finalizar Pedido</h1>
