@@ -247,6 +247,7 @@ router.delete('/adicionais/:id', async (req, res) => {
   }
 });
 
+
 // ========== CATEGORIAS DE PRODUTO ==========
 
 router.get('/categorias', async (_req, res) => {
@@ -1817,4 +1818,43 @@ router.delete('/promocoes/:id', verificarAdmin, async (req, res) => {
     if (resultado.rows.length === 0) return res.status(404).json({ mensagem: "Promoção não encontrada." });
     res.status(204).send();
   } catch (erro) { console.error(erro); res.status(500).json({ mensagem: "Erro ao excluir promoção." }); }
+});
+
+router.get('/vitrine', async (_req, res) => {
+  try {
+    const secoes = await pool.query("SELECT * FROM vitrine_secoes WHERE ativa = true ORDER BY ordem");
+    const comItens = await Promise.all(secoes.rows.map(async (secao) => {
+      const itens = await pool.query("SELECT * FROM vitrine_itens WHERE secao_id = $1 ORDER BY ordem", [secao.id]);
+      return { ...secao, itens: itens.rows };
+    }));
+    res.json(comItens);
+  } catch (erro) { console.error(erro); res.status(500).json({ mensagem: "Erro ao buscar vitrine." }); }
+});
+ 
+router.post('/vitrine/secoes', verificarAdmin, async (req, res) => {
+  const { titulo, ordem } = req.body;
+  const r = await pool.query("INSERT INTO vitrine_secoes (titulo, ordem) VALUES ($1,$2) RETURNING *", [titulo, ordem ?? 0]);
+  res.status(201).json(r.rows[0]);
+});
+router.put('/vitrine/secoes/:id', verificarAdmin, async (req, res) => {
+  const { titulo, ordem, ativa } = req.body;
+  const r = await pool.query("UPDATE vitrine_secoes SET titulo=$1, ordem=$2, ativa=$3 WHERE id=$4 RETURNING *", [titulo, ordem, ativa, req.params.id]);
+  res.json(r.rows[0]);
+});
+router.delete('/vitrine/secoes/:id', verificarAdmin, async (req, res) => {
+  await pool.query("DELETE FROM vitrine_secoes WHERE id = $1", [req.params.id]);
+  res.status(204).send();
+});
+ 
+router.post('/vitrine/itens', verificarAdmin, async (req, res) => {
+  const { secao_id, item_tipo, item_id, ordem } = req.body;
+  const r = await pool.query(
+    "INSERT INTO vitrine_itens (secao_id, item_tipo, item_id, ordem) VALUES ($1,$2,$3,$4) RETURNING *",
+    [secao_id, item_tipo, item_id, ordem ?? 0]
+  );
+  res.status(201).json(r.rows[0]);
+});
+router.delete('/vitrine/itens/:id', verificarAdmin, async (req, res) => {
+  await pool.query("DELETE FROM vitrine_itens WHERE id = $1", [req.params.id]);
+  res.status(204).send();
 });

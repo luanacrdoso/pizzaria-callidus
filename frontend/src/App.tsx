@@ -49,6 +49,7 @@ import { PedidosAtivosPage } from './pages/PedidosAtivosPage';
 import { LoginPage } from './pages/LoginPage';
 import { GarcomFecharComandaPage } from './pages/GarcomFecharComandaPage';
 import { PromocaoDetalhePage } from './pages/PromocaoDetalhePage';
+import { AdminVitrinePage } from './pages/AdminVitrinePage';
 
 function App() {
   return (
@@ -88,6 +89,7 @@ function App() {
       >
         <Route index element={<Navigate to="cardapio" replace />} />
         <Route path="cardapio" element={<AdminCardapioPage />} />
+        <Route path="organizacao" element={<AdminVitrinePage />} />
         <Route path="config" element={<AdminConfigPage />} />
         <Route path="mesas" element={<AdminMesasPage />} />
         <Route path="salao" element={<AdminSalaoPage />} />
