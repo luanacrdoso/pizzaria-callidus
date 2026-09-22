@@ -30,10 +30,11 @@ export function ClienteLayout() {
             {modo === 'claro' ? '🌙' : '☀️'}
           </button>
 
+          <Link to="/meus-pedidos" className="loja-link-item">Meus Pedidos</Link>
+
           {logado ? (
             <>
               <Link to="/perfil" className="loja-link-item">Meu Perfil</Link>
-              <Link to="/meus-pedidos" className="loja-link-item">Meus Pedidos</Link>
               <button
                 onClick={() => { logoutCliente(); window.location.href = "/"; }}
                 className="sidebar-sair"
