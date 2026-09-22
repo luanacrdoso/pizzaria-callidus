@@ -26,14 +26,17 @@ export function ClienteCadastroPage() {
 
   const handleBuscarCep = async (valorCep: string) => {
     setCep(valorCep);
+
     const cepLimpo = valorCep.replace(/\D/g, "");
+
     if (cepLimpo.length === 8) {
       const dados = await buscarEnderecoPorCep(cepLimpo);
+
       if (dados) {
-        setEndereco(dados.endereco || "");
+        setEndereco(dados.logradouro || "");
         setBairro(dados.bairro || "");
-        setCidade(dados.cidade || "");
-        setEstado(dados.estado || "");
+        setCidade(dados.localidade || "");
+        setEstado(dados.uf || "");
       }
     }
   };
@@ -53,10 +56,13 @@ export function ClienteCadastroPage() {
     }
 
     setCarregando(true);
+
     try {
       const resposta = await fetch(`${API_URL}/clientes`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
           nome,
           telefone,
@@ -89,11 +95,40 @@ export function ClienteCadastroPage() {
   return (
     <div style={{ maxWidth: 400, margin: "0 auto", padding: 24 }}>
       <h1>Criar Conta de Cliente</h1>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <input placeholder="Nome completo *" value={nome} onChange={(e) => setNome(e.target.value)} required />
-        <input placeholder="Usuário *" value={username} onChange={(e) => setUsername(e.target.value)} required />
-        <input placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
-        <input placeholder="CPF (opcional)" value={cpf} onChange={(e) => setCpf(e.target.value)} />
+
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 10
+        }}
+      >
+        <input
+          placeholder="Nome completo *"
+          value={nome}
+          onChange={(e) => setNome(e.target.value)}
+          required
+        />
+
+        <input
+          placeholder="Usuário *"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          required
+        />
+
+        <input
+          placeholder="Telefone"
+          value={telefone}
+          onChange={(e) => setTelefone(e.target.value)}
+        />
+
+        <input
+          placeholder="CPF (opcional)"
+          value={cpf}
+          onChange={(e) => setCpf(e.target.value)}
+        />
 
         <input
           type="password"
@@ -102,6 +137,7 @@ export function ClienteCadastroPage() {
           onChange={(e) => setSenha(e.target.value)}
           required
         />
+
         <input
           type="password"
           placeholder="Confirme a senha *"
@@ -111,22 +147,63 @@ export function ClienteCadastroPage() {
         />
 
         <h3>Endereço</h3>
-        <input placeholder="CEP" value={cep} onChange={(e) => handleBuscarCep(e.target.value)} maxLength={9} />
-        <input placeholder="Rua / Endereço" value={endereco} onChange={(e) => setEndereco(e.target.value)} />
-        <input placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value)} />
-        <input placeholder="Bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
+
+        <input
+          placeholder="CEP"
+          value={cep}
+          onChange={(e) => handleBuscarCep(e.target.value)}
+          maxLength={9}
+        />
+
+        <input
+          placeholder="Rua / Endereço"
+          value={endereco}
+          onChange={(e) => setEndereco(e.target.value)}
+        />
+
+        <input
+          placeholder="Número"
+          value={numero}
+          onChange={(e) => setNumero(e.target.value)}
+        />
+
+        <input
+          placeholder="Bairro"
+          value={bairro}
+          onChange={(e) => setBairro(e.target.value)}
+        />
+
         <div style={{ display: "flex", gap: 8 }}>
-          <input placeholder="Cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} style={{ flex: 1 }} />
-          <input placeholder="UF" value={estado} onChange={(e) => setEstado(e.target.value)} style={{ width: 60 }} maxLength={2} />
+          <input
+            placeholder="Cidade"
+            value={cidade}
+            onChange={(e) => setCidade(e.target.value)}
+            style={{ flex: 1 }}
+          />
+
+          <input
+            placeholder="UF"
+            value={estado}
+            onChange={(e) => setEstado(e.target.value)}
+            style={{ width: 60 }}
+            maxLength={2}
+          />
         </div>
 
-        {erro && <p style={{ color: "red", marginTop: 4 }}>{erro}</p>}
+        {erro && (
+          <p style={{ color: "red", marginTop: 4 }}>
+            {erro}
+          </p>
+        )}
 
-        <button type="submit" disabled={carregando} style={{ marginTop: 10 }}>
+        <button
+          type="submit"
+          disabled={carregando}
+          style={{ marginTop: 10 }}
+        >
           {carregando ? "Cadastrando..." : "Cadastrar"}
         </button>
       </form>
     </div>
   );
 }
-

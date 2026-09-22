@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   buscarSalao, atualizarSalao, buscarReservas, criarReserva, atualizarStatusReserva,
-  type SalaoConfig, type Reserva
+  type SalaoConfig
 } from '../api/salao';
 
 export function AdminSalaoPage() {

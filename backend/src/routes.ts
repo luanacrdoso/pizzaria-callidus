@@ -273,39 +273,111 @@ router.get('/config', async (_req, res) => {
 
 router.put('/config', async (req, res) => {
   const {
-    nome, descricao, logo_url, capa_url,
-    cor_primaria_clara, cor_secundaria_clara,
-    cor_primaria_escura, cor_secundaria_escura,
-    endereco, dias_funcionamento, horario_funcionamento,
-    telefone, tempo_preparo_estimado, taxa_entrega,
-    chave_pix, formas_pagamento_aceitas
+    nome,
+    descricao,
+    logo_url,
+    capa_url,
+    cor_primaria_clara,
+    cor_secundaria_clara,
+    cor_primaria_escura,
+    cor_secundaria_escura,
+    endereco,
+    dias_funcionamento,
+    horario_funcionamento,
+    telefone,
+    tempo_preparo_estimado,
+    taxa_entrega,
+    chave_pix,
+    formas_pagamento_aceitas,
+    cor_fundo_clara,
+    cor_fundo_escura,
+    cor_botao_clara,
+    cor_botao_escura,
+    cor_texto_clara,
+    cor_texto_escura
   } = req.body;
+
+  const coresTema = {
+    cor_fundo_clara,
+    cor_fundo_escura,
+    cor_botao_clara,
+    cor_botao_escura,
+    cor_texto_clara,
+    cor_texto_escura
+  };
+
+  for (const [campo, valor] of Object.entries(coresTema)) {
+    if (
+      valor !== undefined &&
+      (typeof valor !== 'string' || !/^#[0-9a-f]{6}$/i.test(valor))
+    ) {
+      return res.status(400).json({
+        mensagem: `${campo} deve ser uma cor no formato #RRGGBB.`
+      });
+    }
+  }
 
   try {
     const resultado = await pool.query(
       `UPDATE restaurante_config SET
-        nome = $1, descricao = $2, logo_url = $3, capa_url = $4,
-        cor_primaria_clara = $5, cor_secundaria_clara = $6,
-        cor_primaria_escura = $7, cor_secundaria_escura = $8,
-        endereco = $9, dias_funcionamento = $10, horario_funcionamento = $11,
-        telefone = $12, tempo_preparo_estimado = $13, taxa_entrega = $14,
-        chave_pix = $15, formas_pagamento_aceitas = $16
+        nome = $1,
+        descricao = $2,
+        logo_url = $3,
+        capa_url = $4,
+        cor_primaria_clara = $5,
+        cor_secundaria_clara = $6,
+        cor_primaria_escura = $7,
+        cor_secundaria_escura = $8,
+        endereco = $9,
+        dias_funcionamento = $10,
+        horario_funcionamento = $11,
+        telefone = $12,
+        tempo_preparo_estimado = $13,
+        taxa_entrega = $14,
+        chave_pix = $15,
+        formas_pagamento_aceitas = $16,
+        cor_fundo_clara = COALESCE($17, cor_fundo_clara),
+        cor_fundo_escura = COALESCE($18, cor_fundo_escura),
+        cor_botao_clara = COALESCE($19, cor_botao_clara),
+        cor_botao_escura = COALESCE($20, cor_botao_escura),
+        cor_texto_clara = COALESCE($21, cor_texto_clara),
+        cor_texto_escura = COALESCE($22, cor_texto_escura)
        WHERE id = 1
        RETURNING *`,
-      [nome, descricao, logo_url, capa_url,
-       cor_primaria_clara, cor_secundaria_clara,
-       cor_primaria_escura, cor_secundaria_escura,
-       endereco, dias_funcionamento, horario_funcionamento,
-       telefone, tempo_preparo_estimado, taxa_entrega,
-       chave_pix, JSON.stringify(formas_pagamento_aceitas)]
+      [
+        nome,
+        descricao,
+        logo_url,
+        capa_url,
+        cor_primaria_clara,
+        cor_secundaria_clara,
+        cor_primaria_escura,
+        cor_secundaria_escura,
+        endereco,
+        dias_funcionamento,
+        horario_funcionamento,
+        telefone,
+        tempo_preparo_estimado,
+        taxa_entrega,
+        chave_pix,
+        JSON.stringify(formas_pagamento_aceitas),
+        cor_fundo_clara,
+        cor_fundo_escura,
+        cor_botao_clara,
+        cor_botao_escura,
+        cor_texto_clara,
+        cor_texto_escura
+      ]
     );
+
     res.json(resultado.rows[0]);
   } catch (erro) {
     console.error(erro);
-    res.status(500).json({ mensagem: 'Erro ao atualizar configuração.' });
+    res.status(500).json({
+      mensagem: 'Erro ao atualizar configuração.'
+    });
   }
 });
-
 // ========== MESAS ==========
 
 router.get('/mesas', async (_req, res) => {
@@ -1638,4 +1710,63 @@ router.get('/avaliacoes/media', async (_req, res) => {
     console.error(erro);
     res.status(500).json({ mensagem: 'Erro ao calcular média.' });
   }
+});
+
+router.get('/promocoes', async (_req, res) => {
+  try {
+    const promos = await pool.query("SELECT * FROM promocoes WHERE ativa = true ORDER BY criado_em DESC");
+    const comSlots = await Promise.all(promos.rows.map(async (promo) => {
+      if (promo.tipo !== "combo") return promo;
+      const slots = await pool.query("SELECT * FROM promocao_combo_slots WHERE promocao_id = $1", [promo.id]);
+      return { ...promo, combo_slots: slots.rows };
+    }));
+    res.json(comSlots);
+  } catch (erro) { console.error(erro); res.status(500).json({ mensagem: "Erro ao buscar promoções." }); }
+});
+ 
+router.post('/promocoes', verificarAdmin, async (req, res) => {
+  const { tipo, nome, descricao, imagem_url, preco_combo, pizza_id, desconto_tipo, desconto_valor, combo_slots } = req.body;
+  if (!tipo || !nome) return res.status(400).json({ mensagem: "tipo e nome são obrigatórios." });
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const resultado = await client.query(
+      `INSERT INTO promocoes (tipo, nome, descricao, imagem_url, preco_combo, pizza_id, desconto_tipo, desconto_valor)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [tipo, nome, descricao || "", imagem_url || "", preco_combo || null, pizza_id || null, desconto_tipo || null, desconto_valor || null]
+    );
+    const promocao = resultado.rows[0];
+    if (tipo === "combo" && Array.isArray(combo_slots)) {
+      for (const slot of combo_slots) {
+        await client.query(
+          "INSERT INTO promocao_combo_slots (promocao_id, categoria_id, quantidade, rotulo) VALUES ($1,$2,$3,$4)",
+          [promocao.id, slot.categoria_id, slot.quantidade, slot.rotulo || null]
+        );
+      }
+    }
+    await client.query("COMMIT");
+    res.status(201).json(promocao);
+  } catch (erro) { await client.query("ROLLBACK"); console.error(erro); res.status(500).json({ mensagem: "Erro ao criar promoção." }); }
+  finally { client.release(); }
+});
+ 
+router.put('/promocoes/:id', verificarAdmin, async (req, res) => {
+  const { nome, descricao, imagem_url, ativa, preco_combo, desconto_tipo, desconto_valor } = req.body;
+  try {
+    const resultado = await pool.query(
+      `UPDATE promocoes SET nome=$1, descricao=$2, imagem_url=$3, ativa=$4, preco_combo=$5, desconto_tipo=$6, desconto_valor=$7
+       WHERE id=$8 RETURNING *`,
+      [nome, descricao, imagem_url, ativa, preco_combo || null, desconto_tipo || null, desconto_valor || null, req.params.id]
+    );
+    if (resultado.rows.length === 0) return res.status(404).json({ mensagem: "Promoção não encontrada." });
+    res.json(resultado.rows[0]);
+  } catch (erro) { console.error(erro); res.status(500).json({ mensagem: "Erro ao editar promoção." }); }
+});
+ 
+router.delete('/promocoes/:id', verificarAdmin, async (req, res) => {
+  try {
+    const resultado = await pool.query("DELETE FROM promocoes WHERE id = $1 RETURNING id", [req.params.id]);
+    if (resultado.rows.length === 0) return res.status(404).json({ mensagem: "Promoção não encontrada." });
+    res.status(204).send();
+  } catch (erro) { console.error(erro); res.status(500).json({ mensagem: "Erro ao excluir promoção." }); }
 });

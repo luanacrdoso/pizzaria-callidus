@@ -34,3 +34,13 @@ export const useCarrinhoStore = create<CarrinhoState>()(
     { name: 'carrinho-pizzaria' }
   )
 );
+
+export function salvarUltimoPedido(pedidoId: number) {
+  const lista = JSON.parse(localStorage.getItem('meus-pedidos-locais') ?? '[]');
+  if (!lista.includes(pedidoId)) lista.unshift(pedidoId);
+  localStorage.setItem('meus-pedidos-locais', JSON.stringify(lista.slice(0, 20)));
+}
+
+export function obterPedidosLocais(): number[] {
+  return JSON.parse(localStorage.getItem('meus-pedidos-locais') ?? '[]');
+}
