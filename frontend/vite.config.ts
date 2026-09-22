@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -44,9 +45,14 @@ export default defineConfig({
       },
     }),
   ],
-  server: {
+    server: {
     host: true,
     port: 5173,
     allowedHosts: ['.trycloudflare.com']
-  }
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/setupTests.ts',
+  },
 })
